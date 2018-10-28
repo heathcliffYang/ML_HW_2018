@@ -1,0 +1,11 @@
+a.out
+Bayesian linear regression results.ipynb
+HW1.pdf
+input.txt
+run.sh
+matrix_operations.o
+.DS_Store
+.ipynb_checkpoints/
+.vscode/
+HW1_input/
+HW2_input/
