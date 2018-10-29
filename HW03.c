@@ -174,7 +174,7 @@ int Bayesian_Linear_Regression_batch(Multiv_Gaussian_distribution *prior, Multiv
     matrix *var_predictive = multi_matrix(Phi_S, Phi_T);
     for (i = 0; i < var_predictive->dimensions[1]; i++)
     {
-        var_predictive->data[i][i] += *random_error_precision;
+        var_predictive->data[i][i] += 1 / (*random_error_precision);
     }
     printf("Predictive distribution's mean:\n");
     for (i = 0; i < mean_predictive->dimensions[0]; i++)
@@ -224,7 +224,10 @@ int Bayesian_Linear_Regression_batch(Multiv_Gaussian_distribution *prior, Multiv
     matrix *PhiTPhi = multi_matrix(Phi_T, Phi);
     for (i = 0; i < PhiTPhi->dimensions[0]; i++)
     {
-        PhiTPhi->data[i][i] /= *random_error_precision;
+        for (j = 0; j < PhiTPhi->dimensions[0]; j++)
+        {
+            PhiTPhi->data[i][j] *= *random_error_precision;
+        }
     }
     matrix *new_var_inverse = add_matrix(S0_inverse, PhiTPhi);
     posterior->var = inverse(new_var_inverse);
@@ -245,7 +248,7 @@ int Bayesian_Linear_Regression_batch(Multiv_Gaussian_distribution *prior, Multiv
     matrix *PhiTy = multi_matrix(Phi_T, y);
     for (i = 0; i < PhiTy->dimensions[0]; i++)
     {
-        PhiTy->data[i][0] /= *random_error_precision;
+        PhiTy->data[i][0] *= *random_error_precision;
     }
     matrix *S0_inverse_mean0 = multi_matrix(S0_inverse, prior->mean);
     matrix *PhiTy_add_S0_inverse_mean0 = add_matrix(PhiTy, S0_inverse_mean0);
@@ -416,7 +419,7 @@ int main(int argc, char **argv)
         /* likelihood's variance / random_error_precision, aI*/
         double random_error_precision = atof(argv[3]);
         matrix *w_truth = create_matrix(1, num_of_basis);
-        printf("Likelihood's var is %f\n", random_error_precision);
+        printf("Likelihood's var is %f*I\n", 1 / random_error_precision);
 
         /* data storage */
         //data_point past_data[1000][3] = {};
@@ -454,9 +457,9 @@ int main(int argc, char **argv)
         do
         {
             /* generate data point */
-            input[0] = Polynomial_linear_data_generator(num_of_basis, random_error_precision, w_truth->data[0]);
-            input[1] = Polynomial_linear_data_generator(num_of_basis, random_error_precision, w_truth->data[0]);
-            input[2] = Polynomial_linear_data_generator(num_of_basis, random_error_precision, w_truth->data[0]);
+            input[0] = Polynomial_linear_data_generator(num_of_basis, 1 / random_error_precision, w_truth->data[0]);
+            input[1] = Polynomial_linear_data_generator(num_of_basis, 1 / random_error_precision, w_truth->data[0]);
+            input[2] = Polynomial_linear_data_generator(num_of_basis, 1 / random_error_precision, w_truth->data[0]);
             //past_data[iter][0] = input[0];
             //past_data[iter][1] = input[1];
             //past_data[iter][2] = input[2];
@@ -471,7 +474,7 @@ int main(int argc, char **argv)
             /* Plot!! */
             //output(past_data, &iter, &prior, &num_of_basis);
 
-        } while (/*iter < 20 */ converge == 0);
+        } while (/*iter < 2*/ converge == 0);
 
         free_mat(prior.mean);
         free_mat(prior.var);
