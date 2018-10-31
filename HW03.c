@@ -6,8 +6,8 @@
 #include "matrix_operations.h"
 
 /* 1 - A */
-/* Univariate gaussian data generator, outcome ~ N(mean, var) */
-double Marsaglia_polar_data_generator(double mean, double var)
+
+double Marsaglia(double xi_mean, double xi_var)
 {
     double x, y, s;
     do
@@ -18,7 +18,18 @@ double Marsaglia_polar_data_generator(double mean, double var)
     } while (s >= 1.0 || s == 0.0);
 
     s = sqrt(-2.0 * log(s) / s);
-    return mean + sqrt(var) * x * s;
+    return xi_mean + sqrt(xi_var) * x * s;
+};
+
+/* Univariate gaussian data generator, outcome ~ N(mean, var) */
+double Marsaglia_polar_data_generator(double mean, double var)
+{
+    double N = 1000, x_bar = 0;
+    for (int i = 0; i < N; i++)
+    {
+        x_bar += Marsaglia(mean, var * N);
+    }
+    return x_bar / N;
 };
 
 /* 1 - B */
