@@ -71,6 +71,27 @@ int *assign_matrix(matrix *A, matrix *B, int start, bool column)
     return 0;
 };
 
+/* assign to specific place of a matrix */
+/* B <- A */
+int *add_assign_matrix(matrix *A, matrix *B, int start, bool column)
+{
+    if (column == true)
+    {
+        //printf("assign\nA\n");
+        //print_matrix(A);
+        //printf("B\n");
+        //print_matrix(B);
+        for (int i = start, k = 0; k < A->dimensions[1]; i++, k++)
+        {
+            for (int j = 0; j < A->dimensions[0]; j++)
+            {
+                B->data[j][i] += A->data[j][k];
+            }
+        }
+    }
+    return 0;
+};
+
 /* Transpose */
 matrix *tran_matrix(matrix *A)
 {

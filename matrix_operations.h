@@ -19,6 +19,9 @@ int print_matrix(matrix *A);
 /* assign to specific place of a matrix */
 int *assign_matrix(matrix *A, matrix *B, int start, bool column);
 
+/* add assign to specific place of a matrix */
+int *add_assign_matrix(matrix *A, matrix *B, int start, bool column);
+
 /* Transpose */
 matrix *tran_matrix(matrix *A);
 
