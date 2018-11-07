@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <math.h>
 #include "gaussian_random_number_generator.h"
 
 double Marsaglia(double xi_mean, double xi_var)
