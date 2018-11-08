@@ -216,7 +216,10 @@ matrix *inverse(matrix *A)
     matrix *x;
     matrix *inverse = create_matrix(A->dimensions[0], A->dimensions[1]);
 
-    LU_decomposition(A, L, U);
+    if (LU_decomposition(A, L, U) == -1)
+    {
+        return NULL;
+    }
 
     //printf("L\n");
     //print_matrix(L);
