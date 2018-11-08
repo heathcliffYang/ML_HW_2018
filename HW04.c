@@ -5,6 +5,26 @@
 #include "gaussian_random_number_generator.h"
 #include "matrix_operations.h"
 
+bool is_converge(double Sensitivity, double Specificity)
+{
+    static double last_sen = 0, last_spe = 0;
+
+    if (Sensitivity >= 0.99 && Specificity >= 0.99)
+    {
+        printf("Converge!\n");
+        return false;
+    }
+    else if (fabs(Sensitivity - last_sen) < 0.05 && fabs(Specificity - last_spe) < 0.05 && Sensitivity > 0.8 && Specificity > 0.8)
+    {
+        printf("Converge!\n");
+        return false;
+    }
+
+    last_sen = Sensitivity;
+    last_spe = Specificity;
+    return true;
+};
+
 int main(int argc, char **argv)
 {
     /* mode 1 */
@@ -53,21 +73,22 @@ int main(int argc, char **argv)
         /* initial w */
         matrix *w = create_matrix(2, 1);
         int num_of_I_error = 0, num_of_II_error = 0, i1 = 0, i2 = 0, iter = 0;
-        double learning_rate = 1;
+        double learning_rate = 0.1, Sensitivity = 0, Specificity = 0;
         /* Steepest gradient descent */
         do
         {
             iter++;
-            printf("weights:\n");
-            print_matrix(w);
+            printf("iter %d\n", iter);
+            //printf("weights:\n");
+            //print_matrix(w);
             /* -- Collect type I and type II error */
             printf("Collect misclassified data...\n");
             matrix *classify_result1 = multi_matrix(D1, w); //  if D1 == 1, type I error  (correct is 0)
             matrix *classify_result2 = multi_matrix(D2, w); //  if D2 == 0, type II error (correct is 1)
-            printf("Classify result1\n");
-            print_matrix(classify_result1);
-            printf("Classify result2\n");
-            print_matrix(classify_result2);
+            //printf("Classify result1\n");
+            //print_matrix(classify_result1);
+            //printf("Classify result2\n");
+            //print_matrix(classify_result2);
             /* TODO: append these errors into a matrix */
             num_of_I_error = 0, num_of_II_error = 0, i1 = 0, i2 = 0;
             for (int i = 0; i < num_of_data; i++)
@@ -79,9 +100,11 @@ int main(int argc, char **argv)
             }
             printf("Type I error: %d\nType II error: %d\n", num_of_I_error, num_of_II_error);
 
+            Sensitivity = (double)(num_of_data - num_of_II_error) / (double)num_of_data,
+            Specificity = (double)(num_of_data - num_of_I_error) / (double)num_of_data;
             printf("Confusion matrix:\n%d | %d\n%d | %d\nSensitivity: %f\nSpecificity: %f\n\n",
                    num_of_data - num_of_II_error, num_of_II_error, num_of_I_error, num_of_data - num_of_I_error,
-                   (double)(num_of_data - num_of_II_error) / (double)num_of_data, (double)(num_of_data - num_of_I_error) / (double)num_of_data);
+                   Sensitivity, Specificity);
 
             matrix *I_error = create_matrix(num_of_I_error, 2);
             matrix *II_error = create_matrix(num_of_II_error, 2);
@@ -108,34 +131,33 @@ int main(int argc, char **argv)
             matrix *II_error_T = tran_matrix(II_error);
             matrix *exp_part_I = create_matrix(num_of_I_error, 1);
             matrix *exp_part_II = create_matrix(num_of_II_error, 1);
-            printf("I_error\n");
-            print_matrix(I_error);
-            printf("II_error\n");
-            print_matrix(II_error);
+            //printf("I_error\n");
+            //print_matrix(I_error);
+            //printf("II_error\n");
+            //print_matrix(II_error);
             for (int i = 0; i < num_of_I_error; i++)
             {
-                exp_part_I->data[i][0] = /*-learning_rate **/ ((1 / (1 + exp(-I_error_W->data[i][0]))) - 0);
+                exp_part_I->data[i][0] = learning_rate * (-((1 / (1 + exp(-I_error_W->data[i][0]))) - 0));
             }
-            printf("exp I\n");
-            print_matrix(exp_part_I);
+            //printf("exp I\n");
+            //print_matrix(exp_part_I);
             matrix *gradient_f_I = multi_matrix(I_error_T, exp_part_I);
             add_assign_matrix(gradient_f_I, w, 0, true);
-            printf("gradient_f_I\n");
-            print_matrix(gradient_f_I);
+            //printf("gradient_f_I\n");
+            //print_matrix(gradient_f_I);
 
             for (int i = 0; i < num_of_II_error; i++)
             {
-                exp_part_II->data[i][0] = /*learning_rate **/ ((1 / (1 + exp(-II_error_W->data[i][0]))) - 1);
+                exp_part_II->data[i][0] = learning_rate * (-((1 / (1 + exp(-II_error_W->data[i][0]))) - 1));
             }
-            printf("exp II\n");
-            print_matrix(exp_part_II);
+            //printf("exp II\n");
+            //print_matrix(exp_part_II);
             matrix *gradient_f_II = multi_matrix(II_error_T, exp_part_II);
             add_assign_matrix(gradient_f_II, w, 0, true);
-            printf("gradient_f_II\n");
-            print_matrix(gradient_f_II);
-            printf("w\n");
-            print_matrix(w);
-            printf("\n");
+            //printf("gradient_f_II\n");
+            //print_matrix(gradient_f_II);
+            //printf("w\n");
+            //print_matrix(w);
 
             free(classify_result1);
             free(I_error);
@@ -147,8 +169,8 @@ int main(int argc, char **argv)
             free(II_error_T);
             free(II_error_W);
             free(exp_part_II);
-        } while (iter < 5);
-        //while (num_of_I_error != 0 || num_of_II_error != 0);
+        } //while (iter < 10);
+        while (is_converge(Sensitivity, Specificity));
 
         /* Newton's method */
 
