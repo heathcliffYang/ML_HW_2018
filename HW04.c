@@ -12,9 +12,9 @@ bool is_converge(double w0, double w1)
 {
     static double last_w0 = 0, last_w1 = 0;
 
-    if (fabs(w0 - last_w0) < 0.001 && fabs(w1 - last_w1) < 0.001 && w0 != 0 && w1 != 0)
+    if (fabs(w0 - last_w0) < 0.00001 && fabs(w1 - last_w1) < 0.00001 && w0 != 0 && w1 != 0)
     {
-        printf("Converge!\n");
+        printf("W Converge!\n");
         return false;
     }
 
@@ -126,8 +126,10 @@ int main(int argc, char **argv)
 
         /* initial w */
         matrix *w = create_matrix(2, 1);
-        int num_of_I_error = 0, num_of_II_error = 0, i1 = 0, i2 = 0, iter = 0;
-        double learning_rate = 0.001, Sensitivity = 0, Specificity = 0;
+        int num_of_I_error = 0, num_of_II_error = 0, i1 = 0, i2 = 0, iter = 0, num_of_change_cluster = 0, converge_alarm = 0;
+        double learning_rate = 0.01, Sensitivity = 0, Specificity = 0;
+        matrix *ans_sheet = create_matrix(num_of_data, 2);
+        matrix *last_ans_sheet = create_matrix(num_of_data, 2);
 
         /* Steepest gradient descent */
         do
@@ -160,19 +162,24 @@ int main(int argc, char **argv)
 
             matrix *I_error = create_matrix(num_of_I_error, 2);
             matrix *II_error = create_matrix(num_of_II_error, 2);
+
             for (int i = 0; i < num_of_data; i++)
             {
+                ans_sheet->data[i][0] = 1;
+                ans_sheet->data[i][1] = 2;
                 if (1 / (1 + exp(-classify_result1->data[i][0])) >= 0.5)
                 {
                     I_error->data[i1][0] = D1->data[i][0];
                     I_error->data[i1][1] = D1->data[i][1];
                     i1++;
+                    ans_sheet->data[i][0] = 2;
                 }
                 if (1 / (1 + exp(-classify_result2->data[i][0])) < 0.5)
                 {
                     II_error->data[i2][0] = D2->data[i][0];
                     II_error->data[i2][1] = D2->data[i][1];
                     i2++;
+                    ans_sheet->data[i][1] = 1;
                 }
             }
 
@@ -195,22 +202,21 @@ int main(int argc, char **argv)
             //print_matrix(exp_part_I);
             matrix *gradient_f_I = multi_matrix(I_error_T, exp_part_I);
             add_assign_matrix(gradient_f_I, w, 0, true);
-            printf("gradient_f_I\n");
-            print_matrix(gradient_f_I);
+            // printf("gradient_f_I\n");
+            // print_matrix(gradient_f_I);
 
             for (int i = 0; i < num_of_II_error; i++)
             {
                 exp_part_II->data[i][0] = -learning_rate * ((1 / (1 + exp(-II_error_W->data[i][0]))) - 1);
             }
-            //printf("exp II\n");
-            //print_matrix(exp_part_II);
+            // printf("exp II\n");
+            // print_matrix(exp_part_II);
             matrix *gradient_f_II = multi_matrix(II_error_T, exp_part_II);
             add_assign_matrix(gradient_f_II, w, 0, true);
-            printf("gradient_f_II\n");
-            print_matrix(gradient_f_II);
-            //printf("w\n");
-            //print_matrix(w);
-
+            // printf("gradient_f_II\n");
+            // print_matrix(gradient_f_II);
+            // printf("w\n");
+            // print_matrix(w);
             free(classify_result1);
             free(I_error);
             free(I_error_T);
@@ -222,13 +228,47 @@ int main(int argc, char **argv)
             free(II_error_T);
             free(II_error_W);
             free(exp_part_II);
+
+            /* check if converge by classification becomes steady */
+            if (iter == 1)
+            {
+                assign_matrix(ans_sheet, last_ans_sheet, 0, true);
+                continue;
+            }
+            num_of_change_cluster = 0;
+            for (int i = 0; i < num_of_data; i++)
+            {
+                if (ans_sheet->data[i][0] != last_ans_sheet->data[i][0])
+                {
+                    num_of_change_cluster++;
+                }
+                if (ans_sheet->data[i][1] != last_ans_sheet->data[i][1])
+                {
+                    num_of_change_cluster++;
+                }
+            }
+            if ((double)(num_of_change_cluster / num_of_data) < 0.02)
+            {
+                converge_alarm++;
+            }
+            else
+            {
+                converge_alarm = 0;
+            }
+            if (converge_alarm > 15 && (double)(num_of_change_cluster / num_of_data) < 0.02)
+            {
+                printf("The ratio of data changing cluster is less than %f, Converge!\n", (double)(num_of_change_cluster / num_of_data));
+                break;
+            }
+            assign_matrix(ans_sheet, last_ans_sheet, 0, true);
+
         } //while (iter < 10);
         while (is_converge(w->data[0][0], w->data[1][0]));
 
         /* Newton's method */
-        printf("\n\nContinue to do Newton's method?[Y/N]\n");
+        printf("\n\nContinue to do Newton's method?[y/n]\n");
         char ans[2];
-        if (scanf("%s", ans) && ans[0] == 'Y')
+        if (scanf("%s", ans) && ans[0] == 'y')
         {
 
             /* reset parameters*/
@@ -238,7 +278,10 @@ int main(int argc, char **argv)
             Sensitivity = 0, Specificity = 0;
             int num_of_error = 0;
             int error_type_I_index[1000] = {};
-            learning_rate = 0.1;
+            num_of_change_cluster = 0;
+            converge_alarm = 0;
+            learning_rate = 0.01;
+
             do
             {
                 iter++;
@@ -259,13 +302,17 @@ int main(int argc, char **argv)
                 num_of_I_error = 0, num_of_II_error = 0, i1 = 0, i2 = 0;
                 for (int i = 0; i < num_of_data; i++)
                 {
+                    ans_sheet->data[i][0] = 1;
+                    ans_sheet->data[i][1] = 2;
                     if (1 / (1 + exp(-classify_result1->data[i][0])) >= 0.5)
                     {
                         num_of_I_error++;
+                        ans_sheet->data[i][0] = 2;
                     }
                     if (1 / (1 + exp(-classify_result2->data[i][0])) < 0.5)
                     {
                         num_of_II_error++;
+                        ans_sheet->data[i][1] = 1;
                     }
                 }
                 num_of_error = num_of_I_error + num_of_II_error;
@@ -274,9 +321,9 @@ int main(int argc, char **argv)
                 Sensitivity = (double)(num_of_data - num_of_II_error) / (double)num_of_data,
                 Specificity = (double)(num_of_data - num_of_I_error) / (double)num_of_data;
 
-                printf("Confusion matrix:\n%d | %d\n%d | %d\nSensitivity: %f\nSpecificity: %f\n\n",
-                       num_of_data - num_of_II_error, num_of_II_error, num_of_I_error, num_of_data - num_of_I_error,
-                       Sensitivity, Specificity);
+                // printf("Confusion matrix:\n%d | %d\n%d | %d\nSensitivity: %f\nSpecificity: %f\n\n",
+                //        num_of_data - num_of_II_error, num_of_II_error, num_of_I_error, num_of_data - num_of_I_error,
+                //        Sensitivity, Specificity);
                 if (num_of_error == 0)
                     break;
 
@@ -290,7 +337,6 @@ int main(int argc, char **argv)
                         error->data[i1][0] = D1->data[i][0];
                         error->data[i1][1] = D1->data[i][1];
                         error_type_I_index[i1] = 1;
-                        printf("%d ", i1);
                         i1++;
                     }
                     if (1 / (1 + exp(-classify_result2->data[i][0])) < 0.5)
@@ -307,8 +353,8 @@ int main(int argc, char **argv)
                 // print_matrix(error);
 
                 matrix *error_W = multi_matrix(error, w);
-                // printf("error_W\n");
-                // print_matrix(error_W);
+                //printf("error_W\n");
+                //print_matrix(error_W);
                 matrix *error_T = tran_matrix(error);
                 matrix *exp_part = create_matrix(num_of_error, 1);
                 matrix *Hessian_D = create_matrix(num_of_error, num_of_error);
@@ -326,19 +372,19 @@ int main(int argc, char **argv)
                     Hessian_D->data[i][i] = exp(-error_W->data[i][0]) / pow(1 + exp(-error_W->data[i][0]), 2);
                     // printf("exp(-error_W): %f\n", exp(-error_W->data[i][0]));
                 }
-                //printf("Hessian_D\n");
-                //print_matrix(Hessian_D);
-                //printf("exp_part\n");
-                //print_matrix(exp_part);
+                // printf("Hessian_D\n");
+                // print_matrix(Hessian_D);
+                // printf("exp_part\n");
+                // print_matrix(exp_part);
                 matrix *gradient_f = multi_matrix(error_T, exp_part);
-                //printf("gradient_f\n");
-                //print_matrix(gradient_f);
+                // printf("gradient_f\n");
+                // print_matrix(gradient_f);
                 matrix *Phi_D = multi_matrix(error_T, Hessian_D);
-                //printf("Phi_D\n");
-                //print_matrix(Phi_D);
+                // printf("Phi_D\n");
+                // print_matrix(Phi_D);
                 matrix *Hessian = multi_matrix(Phi_D, error);
-                //printf("Hessian\n");
-                //print_matrix(Hessian);
+                // printf("Hessian\n");
+                // print_matrix(Hessian);
                 matrix *H_inverse = inverse(Hessian);
 
                 if (H_inverse == NULL)
@@ -346,12 +392,54 @@ int main(int argc, char **argv)
                     printf("Cannot find the Hessian inverse\n");
                     return -1;
                 }
-                //printf("H_inverse\n");
-                //print_matrix(H_inverse);
                 matrix *H_F = multi_matrix(H_inverse, gradient_f);
+                // printf("H_F\n");
+                // print_matrix(H_F);
+                // for (int z = 0; z < 2; z++)
+                // {
+                //     for (int r = 0; r < 2; r++)
+                //     {
+                //         H_F->data[z][r] = H_F->data[z][r] * lr;
+                //     }
+                // }
+                // printf("H_F\n");
+                // print_matrix(H_F);
                 add_assign_matrix(H_F, w, 0, true);
-                //printf("H_F\n");
-                //print_matrix(H_F);
+
+                /* check if converge by classification becomes steady */
+                if (iter == 1)
+                {
+                    assign_matrix(ans_sheet, last_ans_sheet, 0, true);
+                    continue;
+                }
+                num_of_change_cluster = 0;
+                for (int i = 0; i < num_of_data; i++)
+                {
+                    if (ans_sheet->data[i][0] != last_ans_sheet->data[i][0])
+                    {
+                        num_of_change_cluster++;
+                    }
+                    if (ans_sheet->data[i][1] != last_ans_sheet->data[i][1])
+                    {
+                        num_of_change_cluster++;
+                    }
+                }
+                if ((double)(num_of_change_cluster / num_of_data) < 0.10)
+                {
+                    converge_alarm++;
+                    printf("Converge alarm!\n");
+                }
+                else
+                {
+                    converge_alarm = 0;
+                    printf("Reset converge alarm!\n");
+                }
+                if (converge_alarm > 10 && (double)(num_of_change_cluster / num_of_data) < 0.10)
+                {
+                    printf("The ratio of data changing cluster is less than %f, Converge!\n", (double)(num_of_change_cluster / num_of_data));
+                    break;
+                }
+                assign_matrix(ans_sheet, last_ans_sheet, 0, true);
 
                 free(Hessian);
                 free(H_inverse);
@@ -366,13 +454,15 @@ int main(int argc, char **argv)
                 free(classify_result2);
                 //free(II_error);
                 free(error);
-            } //while (iter < 10);
-            while (is_converge(w->data[0][0], w->data[1][0]));
+            } while (true);
+            //while (is_converge(w->data[0][0], w->data[1][0]));
         }
 
         free(D1);
         free(D2);
         free(w);
+        free(ans_sheet);
+        free(last_ans_sheet);
     }
     /* mode 2 - EM algorithm */
     else if (atoi(argv[1]) == 2)

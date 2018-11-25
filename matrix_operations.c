@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <math.h>
 #include "matrix_operations.h"
 
 /* create the matrix */
@@ -245,6 +246,15 @@ matrix *inverse(matrix *A)
         assign_matrix(x, inverse, i, true);
         free_mat(x);
     }
+    for (int i = 0; i < A->dimensions[0]; i++)
+    {
+        for (int j = 0; j < A->dimensions[1]; j++)
+        {
+            if (!isfinite(inverse->data[i][j]))
+                return NULL;
+        }
+    }
+
     //printf("inverse\n");
     //print_matrix(inverse);
     free_mat(L);
