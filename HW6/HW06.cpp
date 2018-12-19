@@ -30,7 +30,7 @@ vector<data_point> data_points;
 
 vector<cluster_center> centers;
 
-vector<double> cluster_base;
+vector<double> cluster_base(2);
 
 int reader(int data_mode)
 {
@@ -68,11 +68,6 @@ int reader(int data_mode)
 
     return 0;
 };
-
-// double compute_Eu_distance(data_point a, cluster_center c)
-// {
-//     return ;
-// };
 
 cluster_center old;
 
@@ -212,7 +207,7 @@ int K_Means(int num_of_cl, int init_mode, int write_file)
     double min = 0, tmp = 0;
     int belong_index = 0, iter = 0;
     min = 100;
-    ofstream output_file("k-means_cl_ccia.txt", ios::app);
+    ofstream output_file("k-means_cl_random.txt", ios::app);
     do
     {
         iter++;
@@ -277,22 +272,36 @@ double RBF(int a, int b, double gamma)
 
 bool kernel_is_converge()
 {
-    /* Check out if centers become steady */
-    static vector<cluster_center> old_centers(centers.size(), old);
-    int error = 0;
-
-    for (int i = 0; i < centers.size(); i++)
+    /* Check cluster base */
+    static vector<double> old_base(cluster_base.size(), 0.0);
+    double error = 0;
+    for (int i = 0; i < cluster_base.size(); i++)
     {
-        cout << "converge check :" << old_centers[i].num_of_element << " " << centers[i].num_of_element << endl;
-        error += abs(old_centers[i].num_of_element - centers[i].num_of_element);
-        old_centers[i].num_of_element = centers[i].num_of_element;
+        error += fabs(old_base[i] - cluster_base[i]);
+        old_base[i] = cluster_base[i];
     }
-
-    if (error == 0)
+    if (error < 0.000001)
     {
         cout << "converge!\n";
         return false;
     }
+
+    /* Check out if centers become steady */
+    // static vector<cluster_center> old_centers(centers.size(), old);
+    // int error = 0;
+
+    // for (int i = 0; i < centers.size(); i++)
+    // {
+    //     cout << "converge check :" << old_centers[i].num_of_element << " " << centers[i].num_of_element << endl;
+    //     error += abs(old_centers[i].num_of_element - centers[i].num_of_element);
+    //     old_centers[i].num_of_element = centers[i].num_of_element;
+    // }
+
+    // if (error == 0)
+    // {
+    //     cout << "converge!\n";
+    //     return false;
+    // }
 
     return true;
 };
@@ -354,6 +363,7 @@ int Kernel_k_means(int num_of_cl, double gamma, int init_mode)
     {
         iter++;
         cout << "iter " << iter << endl;
+        cluster_base.assign(num_of_cl, 0);
 
         for (int i = 0; i < data_points.size(); i++)
         {
@@ -361,7 +371,6 @@ int Kernel_k_means(int num_of_cl, double gamma, int init_mode)
             {
                 if (data_points[i].cluster == data_points[j].cluster)
                     cluster_base[data_points[i].cluster] += RBF(i, j, gamma);
-                //cout << i << "     " << j << "     " << cluster_base[data_points[i].cluster] << endl;
             }
         }
 
@@ -381,28 +390,18 @@ int Kernel_k_means(int num_of_cl, double gamma, int init_mode)
             {
                 tmp[data_points[j].cluster] -= RBF(i, j, gamma);
             }
-
             for (int k = 0; k < num_of_cl; k++)
             {
                 if (centers[k].num_of_element != 0)
                 {
                     tmp[k] /= centers[k].num_of_element;
                     tmp[k] *= 2;
-                    cout << "data " << i << " simialr second is " << tmp[k] << ' ';
                     tmp[k] += cluster_base[k];
                 }
-                cout << "data " << i << " simialr with " << k << " is " << tmp[k] << endl;
             }
-
-            //centers[data_points[i].cluster].num_of_element--;
-
             min = min_element(tmp.begin(), tmp.end());
-            //data_points[i].cluster = distance(tmp.begin(), min);
             next_distribution[i] = distance(tmp.begin(), min);
-            cout << next_distribution[i] << endl;
-            //centers[data_points[i].cluster].num_of_element++;
             output_file << next_distribution[i] << '\n';
-
             tmp.assign(num_of_cl, 0);
         }
 
@@ -417,8 +416,6 @@ int Kernel_k_means(int num_of_cl, double gamma, int init_mode)
             data_points[i].cluster = next_distribution[i];
         }
 
-        cluster_base.assign(num_of_cl, 0);
-
         output_file << -1;
 
         for (int i = 0; i < num_of_cl; i++)
@@ -428,8 +425,8 @@ int Kernel_k_means(int num_of_cl, double gamma, int init_mode)
 
         output_file << '\n';
 
-        // if (iter > 3)
-        //     break;
+        if (iter > 50)
+            break;
     } while (kernel_is_converge());
 
     output_file.close();
@@ -472,15 +469,12 @@ int Spectral(int num_of_cl, double gamma, int init_mode)
 
     // Construct matrix operation object using the wrapper class DenseSymMatProd
     DenseSymMatProd<double> op(L);
-    cout << "1\n";
     // Construct eigen solver object, requesting the largest three eigenvalues
     SymEigsSolver<double, SMALLEST_ALGE, DenseSymMatProd<double>> eigs(&op, num_of_cl + 1, 2 * (num_of_cl + 1));
-    cout << "2\n";
     // Initialize and compute
     eigs.init();
-    cout << "3\n";
     int nconv = eigs.compute();
-    cout << "4\n";
+
     // Retrieve results
     Eigen::VectorXd evalues;
     Eigen::MatrixXd evectors;
@@ -488,9 +482,7 @@ int Spectral(int num_of_cl, double gamma, int init_mode)
     {
         evalues = eigs.eigenvalues();
         evectors = eigs.eigenvectors();
-        cout << "5\n";
     }
-    cout << "get eigen" << endl;
 
     string file_name = "Spectral_eigenvector_c" + to_string(num_of_cl) + "_g" + to_string(int(gamma));
     ofstream output_file(file_name, ios::app);
