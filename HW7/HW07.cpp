@@ -26,10 +26,13 @@ using namespace std;
 // vector<data_point> data_points;
 
 // vector<cluster_center> centers;
-double X_train[5000][784] = {};
-double X_test[2500][784] = {};
-double X_train_c[784] = {};
-double X_test_c[784] = {};
+double X_train[5000][784] = {0};
+double X_test[2500][784] = {0};
+double X_train_c[784] = {0};
+double X_test_c[784] = {0};
+double pca_2d_train[5000][2] = {0};
+double pca_2d_test[2500][2] = {0};
+
 Eigen::MatrixXd covariance_train(784, 784);
 Eigen::MatrixXd covariance_test(784, 784);
 
@@ -38,9 +41,9 @@ int reader(int data_mode)
     string line;
     string file_name;
     if (data_mode == 0)
-        file_name = "X_train.txt";
+        file_name = "X_train.csv";
     else
-        file_name = "X_test.txt";
+        file_name = "X_test.csv";
     ifstream input_file(file_name);
 
     if (input_file.is_open())
@@ -82,7 +85,7 @@ int reader(int data_mode)
     return 0;
 };
 
-int PCA()
+int PCA(int write_file)
 {
     /* compute centers */
     for (int i = 0; i < 784; i++)
@@ -143,7 +146,8 @@ int PCA()
     eigs_test.init();
     eigs_train.compute();
     eigs_test.compute();
-    // Retrieve results
+
+    //Retrieve results
     Eigen::VectorXd evalues_train;
     Eigen::MatrixXd evectors_train;
     if (eigs_train.info() == SUCCESSFUL)
@@ -151,6 +155,23 @@ int PCA()
         evalues_train = eigs_train.eigenvalues();
         evectors_train = eigs_train.eigenvectors();
     }
+
+    ofstream ouput_train_2D("PCA_train.txt", ios::app);
+
+    for (int i = 0; i < 5000; i++)
+    {
+        for (int j = 0; j < 784; j++)
+        {
+            pca_2d_train[i][0] += X_train[i][j] * evectors_train(j, 0);
+            pca_2d_train[i][1] += X_train[i][j] * evectors_train(j, 1);
+        }
+        if (write_file == 1)
+        {
+            ouput_train_2D << pca_2d_train[i][0] << "," << pca_2d_train[i][1] << "\n";
+        }
+    }
+    ouput_train_2D.close();
+
     // Retrieve results
     Eigen::VectorXd evalues_test;
     Eigen::MatrixXd evectors_test;
@@ -159,12 +180,33 @@ int PCA()
         evalues_test = eigs_test.eigenvalues();
         evectors_test = eigs_test.eigenvectors();
     }
+    cout << "write test\n";
+    ofstream ouput_test_2D("PCA_test.txt", ios::app);
+    for (int i = 0; i < 2500; i++)
+    {
+        for (int j = 0; j < 784; j++)
+        {
+            pca_2d_test[i][0] += X_test[i][j] * evectors_test(j, 0);
+            pca_2d_test[i][1] += X_test[i][j] * evectors_test(j, 1);
+        }
+        if (write_file == 1)
+        {
+            ouput_test_2D << pca_2d_test[i][0] << "," << pca_2d_test[i][1] << "\n";
+        }
+    }
+    ouput_test_2D.close();
+    cout << "end\n";
+    return 0;
 };
 
 int main()
 {
+    int write_file;
     reader(0);
     reader(1);
+    cout << "write pca results to files?\n";
+    cin >> write_file;
+    PCA(write_file);
 
     return 0;
 }
