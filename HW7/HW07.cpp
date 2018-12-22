@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <ctime>
@@ -9,6 +10,7 @@
 #include <Eigen/LU>
 #include <Eigen/Dense>
 #include <SymEigsSolver.h>
+#include <Eigen/QR>
 
 using namespace Spectra;
 using namespace std;
@@ -220,21 +222,21 @@ bool is_converge(vector<vector<double>> centers, int num_of_cl)
 
             error_of_a_center += pow(old_centers[i][j] - centers[i][j], 2);
             old_centers[i][j] = centers[i][j];
-            old_centers[i][j] = centers[i][j];
+            cout << centers[i][j] << ",";
         }
+        cout << endl;
         error += sqrt(error_of_a_center);
         error_of_a_center = 0;
     }
-
-    if (error / num_of_cl < 0.01)
+    cout << "Error is " << error / (double)num_of_cl << " converge!\n";
+    if (error / (double)num_of_cl < 0.0001)
     {
-        cout << "converge!\n";
         return false;
     }
     return true;
 };
 
-int k_means(vector<vector<double>> U, int data_num, int num_of_cl, int kernel_choose, int spec_mode)
+int k_means(vector<vector<double>> U, int data_num, int num_of_cl, int kernel_choose, int spec_mode, double gamma)
 {
     cout << "k-means start\n";
     /* init centers */
@@ -246,20 +248,37 @@ int k_means(vector<vector<double>> U, int data_num, int num_of_cl, int kernel_ch
     cout << "Start initialization\n";
     for (int i = 0; i < num_of_cl; i++)
     {
+        cl_elements[i] = 0;
         centers[i] = vector<double>(num_of_cl);
         for (int j = 0; j < num_of_cl; j++)
-        {
-            centers[i][j] = (rand() / (double)RAND_MAX) * 2.0 - 1.0;
-        }
+            centers[i][j] = 0;
     }
-    cout << "Finish initialization\n";
+    for (int i = 0; i < data_num; i++)
+    {
+        cl_index[i] = rand() % num_of_cl;
+        cl_elements[cl_index[i]]++;
+        for (int j = 0; j < num_of_cl; j++)
+            centers[cl_index[i]][j] += U[i][j];
+    }
+    for (int i = 0; i < num_of_cl; i++)
+        for (int j = 0; j < num_of_cl; j++)
+            centers[i][j] /= cl_elements[i];
+    // for (int i = 0; i < num_of_cl; i++)
+    // {
+
+    //     for (int j = 0; j < num_of_cl; j++)
+    //     {
+    //         centers[i][j] = (rand() / (double)RAND_MAX) * 0.002 - 1.0;
+    //     }
+    // }
+    cout
+        << "Finish initialization\n";
     do
     {
         iter++;
-        cout << "iter " << iter << endl;
+        cout << "\niter " << iter << endl;
         for (int i = 0; i < data_num; i++)
         {
-            // cout << "data_" << i << " is computed\n";
             for (int j = 0; j < num_of_cl; j++)
             {
                 // cout << "to " << j << "-th center\n";
@@ -281,7 +300,6 @@ int k_means(vector<vector<double>> U, int data_num, int num_of_cl, int kernel_ch
                 // cout << "distance b/w" << i << " and " << j << " is " << tmp << endl;
                 tmp = 0;
             }
-            // cout << "The belong index is " << belong_index << endl;
             cl_index[i] = belong_index;
             cl_elements[belong_index]++;
             min = std::numeric_limits<double>::max();
@@ -305,20 +323,23 @@ int k_means(vector<vector<double>> U, int data_num, int num_of_cl, int kernel_ch
 
         for (int i = 0; i < num_of_cl; i++)
         {
+            cout << "Cluster " << i << " contains " << cl_elements[i] << endl;
             for (int j = 0; j < num_of_cl; j++)
             {
-                centers[i][j] /= cl_elements[i];
+                if (cl_elements[i] != 0)
+                    centers[i][j] /= cl_elements[i];
             }
             cl_elements[i] = 0;
         }
 
-    } while (is_converge(centers, num_of_cl));
+    } while (iter < 10 && is_converge(centers, num_of_cl));
 
     cout << "k-means finish\n";
+    int g = (int)gamma;
 
     if (spec_mode == 0)
     {
-        ofstream output_file("ratio_cut_k_" + to_string(kernel_choose) + "_d_" + to_string(data_num) + ".csv", ios::app);
+        ofstream output_file("first_try/ratio_cut_k_" + to_string(kernel_choose) + "_d_" + to_string(data_num) + "_g_" + to_string(g) + ".csv", ios::app);
 
         for (int i = 0; i < data_num; i++)
         {
@@ -328,7 +349,7 @@ int k_means(vector<vector<double>> U, int data_num, int num_of_cl, int kernel_ch
     }
     else
     {
-        ofstream output_file("normalized_cut_k_" + to_string(kernel_choose) + "_d_" + to_string(data_num) + ".csv", ios::app);
+        ofstream output_file("first_try/normalized_cut_k_" + to_string(kernel_choose) + "_d_" + to_string(data_num) + "_g_" + to_string(g) + ".csv", ios::app);
 
         for (int i = 0; i < data_num; i++)
         {
@@ -357,6 +378,10 @@ int Spectral(int kernel_choose, int num_of_cl, double pca_2d_data[][2], int data
     vector<double> D(data_num);
     for (int i = 0; i < data_num; i++)
     {
+        D[i] = 0;
+    }
+    for (int i = 0; i < data_num; i++)
+    {
         L(i, i) = 0;
         for (int j = 0; j < data_num; j++)
         {
@@ -373,6 +398,8 @@ int Spectral(int kernel_choose, int num_of_cl, double pca_2d_data[][2], int data
 
     /* L for ratio cut */
     cout << "Ratio Cut\n";
+    int g = (int)gamma;
+    ofstream output_file("ratio_cut_data_point_k_" + to_string(kernel_choose) + "_d_" + to_string(data_num) + "_g_" + to_string(g) + ".csv", ios::app);
     DenseSymMatProd<double> op(L);
     SymEigsSolver<double, SMALLEST_ALGE, DenseSymMatProd<double>> eigs(&op, 5, 2 * (5 + 1));
     eigs.init();
@@ -385,17 +412,21 @@ int Spectral(int kernel_choose, int num_of_cl, double pca_2d_data[][2], int data
         for (int j = 0; j < num_of_cl; j++)
         {
             U[i][j] = u(i, j);
+            output_file << u(i, j) << ",";
         }
+        output_file << "\n";
     }
+    output_file.close();
     // Retrieve results
     if (eigs.info() == SUCCESSFUL)
     {
-        k_means(U, data_num, num_of_cl, kernel_choose, 0);
+        k_means(U, data_num, num_of_cl, kernel_choose, 0, gamma);
     }
     U.clear();
 
     /* normalized cut */
     cout << "Normalized Cut\n";
+    ofstream output_file_normal("normal_cut_data_point_k_" + to_string(kernel_choose) + "_d_" + to_string(data_num) + "_g_" + to_string(g) + ".csv", ios::app);
 
     for (int i = 0; i < data_num; i++)
     {
@@ -416,12 +447,15 @@ int Spectral(int kernel_choose, int num_of_cl, double pca_2d_data[][2], int data
         for (int j = 0; j < num_of_cl; j++)
         {
             U_normal[i][j] = u_normal(i, j);
+            output_file_normal << u_normal(i, j) << ",";
         }
+        output_file_normal << "\n";
     }
+    output_file_normal.close();
     // Retrieve results
     if (eigs.info() == SUCCESSFUL)
     {
-        k_means(U_normal, data_num, num_of_cl, kernel_choose, 1);
+        k_means(U_normal, data_num, num_of_cl, kernel_choose, 1, gamma);
     }
 
     return 0;
@@ -445,13 +479,23 @@ int LDA(int data_num, int num_of_cl)
             T_train[i] = stod(num);
         }
         cout << "end\nFind centers\n";
+        for (int i = 0; i < num_of_cl; i++)
+        {
+            cl_elements[i] = 0;
+            centers[i] = vector<double>(784);
+            for (int j = 0; j < 784; j++)
+            {
+                centers[i][j] = 0;
+            }
+        }
 
         /* Find centers */
         for (int i = 0; i < data_num; i++)
         {
-            centers[i] = vector<double>(784);
             cl_elements[T_train[i] - 1]++;
+
             cout << "data " << i << endl;
+
             for (int j = 0; j < 784; j++)
             {
                 centers[T_train[i] - 1][j] += X_train[i][j];
@@ -460,10 +504,13 @@ int LDA(int data_num, int num_of_cl)
 
         for (int i = 0; i < num_of_cl; i++)
         {
+            cout << "cluster " << i << " contains " << cl_elements[i] << " elements\n";
             for (int j = 0; j < 784; j++)
             {
                 centers[i][j] /= cl_elements[i];
+                cout << centers[i][j] << " ";
             }
+            cout << endl;
         }
 
         cout << "Finish centers computation\n";
@@ -472,6 +519,15 @@ int LDA(int data_num, int num_of_cl)
         double tmp_sb_x[784] = {0};
         Eigen::MatrixXd Sw(784, 784);
         Eigen::MatrixXd Sb(784, 784);
+
+        for (int j = 0; j < 784; j++)
+        {
+            for (int l = 0; l < 784; l++)
+            {
+                Sb(j, l) = 0;
+                Sw(j, l) = 0;
+            }
+        }
 
         for (int i = 0; i < 5000; i++)
         {
@@ -483,13 +539,15 @@ int LDA(int data_num, int num_of_cl)
                     for (int j = 0; j < 784; j++)
                     {
                         tmp_x[j] = X_train[i][j] - centers[k][j];
+                        if (tmp_x[j] < 0.0001)
+                            tmp_x[j] = 0.0001;
                     }
 
                     for (int j = 0; j < 784; j++)
                     {
                         for (int l = 0; l < 784; l++)
                         {
-                            Sw(j, l) += tmp_x[j] * tmp_x[l];
+                            Sw(j, l) += tmp_x[j] * tmp_x[l] * 1000;
                         }
                     }
                 }
@@ -501,18 +559,23 @@ int LDA(int data_num, int num_of_cl)
             for (int j = 0; j < 784; j++)
             {
                 tmp_sb_x[j] = centers[k][j] - X_train_c[j];
+                if (tmp_sb_x[j] < 0.0001)
+                    tmp_sb_x[j] = 0.0001;
             }
 
             for (int j = 0; j < 784; j++)
             {
                 for (int l = 0; l < 784; l++)
                 {
-                    Sb(j, l) += tmp_sb_x[j] * tmp_sb_x[l] * cl_elements[k];
+                    Sb(j, l) += tmp_sb_x[j] * tmp_sb_x[l] * cl_elements[k] * 1000;
                 }
             }
         }
+        cout << "Sw\n";
+        cout << Sw;
         cout << "Sw_inv_Sb compute" << endl;
-        Eigen::MatrixXd Sw_inv_Sb = Sw.inverse() * Sb;
+        Eigen::MatrixXd Sw_inv_Sb = Sw.completeOrthogonalDecomposition().pseudoInverse() * Sb;
+        cout << Sw_inv_Sb;
         DenseSymMatProd<double> op(Sw_inv_Sb);
         SymEigsSolver<double, LARGEST_ALGE, DenseSymMatProd<double>> eigs(&op, 5, 2 * (5 + 1));
         eigs.init();
@@ -555,13 +618,22 @@ int LDA(int data_num, int num_of_cl)
             getline(input_file, num, '\n');
             T_test[i] = stod(num);
         }
+        for (int i = 0; i < num_of_cl; i++)
+        {
+            cl_elements[i] = 0;
+            centers[i] = vector<double>(784);
+            for (int j = 0; j < 784; j++)
+            {
+                centers[i][j] = 0;
+            }
+        }
 
         /* Find centers */
         for (int i = 0; i < data_num; i++)
         {
             cout << "data " << i << endl;
-            centers[i] = vector<double>(784);
             cl_elements[T_test[i] - 1]++;
+
             for (int j = 0; j < 784; j++)
             {
                 centers[T_test[i] - 1][j] += X_test[i][j];
@@ -573,6 +645,10 @@ int LDA(int data_num, int num_of_cl)
             for (int j = 0; j < 784; j++)
             {
                 centers[i][j] /= cl_elements[i];
+                if (centers[i][j] == 0)
+                {
+                    centers[i][j] = 0.00000001;
+                }
             }
         }
 
@@ -582,7 +658,14 @@ int LDA(int data_num, int num_of_cl)
         double tmp_sb_x[784] = {0};
         Eigen::MatrixXd Sw(784, 784);
         Eigen::MatrixXd Sb(784, 784);
-
+        for (int j = 0; j < 784; j++)
+        {
+            for (int l = 0; l < 784; l++)
+            {
+                Sb(j, l) = 0;
+                Sw(j, l) = 0;
+            }
+        }
         for (int i = 0; i < 2500; i++)
         {
             cout << "data " << i << endl;
@@ -599,7 +682,7 @@ int LDA(int data_num, int num_of_cl)
                     {
                         for (int l = 0; l < 784; l++)
                         {
-                            Sw(j, l) += tmp_x[j] * tmp_x[l];
+                            Sw(j, l) += tmp_x[j] * tmp_x[l] * 1000;
                         }
                     }
                 }
@@ -616,12 +699,13 @@ int LDA(int data_num, int num_of_cl)
             {
                 for (int l = 0; l < 784; l++)
                 {
-                    Sb(j, l) += tmp_sb_x[j] * tmp_sb_x[l] * cl_elements[k];
+                    Sb(j, l) += tmp_sb_x[j] * tmp_sb_x[l] * cl_elements[k] * 1000;
                 }
             }
         }
         cout << "Sw_inv_Sb compute" << endl;
-        Eigen::MatrixXd Sw_inv_Sb = Sw.inverse() * Sb;
+        Eigen::MatrixXd Sw_inv_Sb = Sw.completeOrthogonalDecomposition().pseudoInverse() * Sb;
+        cout << Sw.inverse();
         DenseSymMatProd<double> op(Sw_inv_Sb);
         SymEigsSolver<double, LARGEST_ALGE, DenseSymMatProd<double>> eigs(&op, 5, 2 * (5 + 1));
         eigs.init();
@@ -654,10 +738,170 @@ int LDA(int data_num, int num_of_cl)
     return 0;
 };
 
+int att_faces()
+{
+    cout << "PCA face part\n";
+    string line;
+    int len, wid, iter = 0, iter_image = 0;
+    unsigned char pixel;
+    unsigned int pix[40][92 * 112];
+    unsigned int center[92 * 112] = {0};
+
+    for (int i = 1; i <= 40; i++)
+    {
+        for (int j = 1; j <= 1; j++)
+        {
+            ifstream input_file("att_faces/s" + to_string(i) + "/" + to_string(j) + ".pgm", ios::binary);
+            stringstream ss;
+            cout << "Read " << iter_image << endl;
+            if (input_file.is_open())
+            {
+                getline(input_file, line, '\n');
+                getline(input_file, line, ' ');
+                len = stoi(line, nullptr, 0);
+                getline(input_file, line, '\n');
+                wid = stoi(line, nullptr, 0);
+                getline(input_file, line, '\n');
+                cout << "The picture is " << len << " x " << wid << endl;
+                ss << input_file.rdbuf();
+                iter = 0;
+                for (int k = 0; k < len; k++)
+                {
+                    for (int l = 0; l < wid; l++)
+                    {
+
+                        ss >> pixel;
+                        //getline(input_file, line, '\n');
+                        pix[iter_image][iter] = pixel;
+                        cout << pix[iter_image][iter] << endl;
+                        iter++;
+                    }
+                    cout << endl;
+                }
+            }
+            iter_image++;
+        }
+    }
+    cout << "Compute center\n";
+
+    for (int i = 0; i < iter_image; i++)
+    {
+        for (int j = 0; j < 92 * 112; j++)
+        {
+            center[j] += pix[i][j];
+        }
+    }
+
+    for (int j = 0; j < 92 * 112; j++)
+    {
+        center[j] /= 40;
+    }
+    cout << "Finish\n";
+
+    unsigned int tmp[92 * 112] = {0};
+    Eigen::MatrixXd S(92 * 112, 92 * 112);
+    cout << "Produce S" << endl;
+    for (int i = 0; i < iter_image; i++)
+    {
+        cout << "data point " << i << endl;
+        for (int j = 0; j < 92 * 112; j++)
+        {
+            tmp[j] = pix[i][j] - center[j];
+        }
+
+        for (int j = 0; j < 92 * 112; j++)
+        {
+            for (int k = 0; k < 92 * 112; k++)
+            {
+                S(j, k) += tmp[j] * tmp[k] / 40;
+            }
+        }
+    }
+    cout << "Start compute eigenvectors\n";
+    DenseSymMatProd<double> op(S);
+    SymEigsSolver<double, LARGEST_ALGE, DenseSymMatProd<double>> eigs(&op, 25, 2 * (25 + 1));
+    eigs.init();
+    eigs.compute();
+    Eigen::MatrixXd evectors;
+    if (eigs.info() == SUCCESSFUL)
+    {
+        evectors = eigs.eigenvectors();
+    }
+    cout << "end\n";
+    Eigen::MatrixXd WWt = evectors * evectors.transpose();
+    cout << "Compute transpose\nStart to write new eigenface in\n";
+
+    double bitmap[92][112];
+    for (int i = 0; i < 25; i++)
+    {
+        cout << "Write ..." << i << endl;
+        ofstream output_2D("PCA_eigen_face_" + to_string(i) + ".txt", ios::app);
+        // output_2D << "P5\n"
+        //           << 92 << " " << 112 << "\n"
+        //           << 255 << "\n";
+        iter = 0;
+        output_2D << i << '\n';
+        for (int j = 0; j < 92; j++)
+        {
+            for (int k = 0; k < 112; k++)
+            {
+                bitmap[j][k] = evectors(iter, i);
+                iter++;
+                output_2D << bitmap[j][k] << ",";
+            }
+            output_2D << '\n';
+        }
+
+        output_2D.close();
+    }
+    cout << "Start to reconstruct faces\n";
+    for (int i = 0; i < 10; i++)
+    {
+        cout << "Construct... " << i << endl;
+        // ofstream output_2D("PCA_recon_face_" + to_string(i) + ".pgm", ios::app | ios::binary | ios::trunc);
+        ofstream output_2D_data("PCA_recon_face_" + to_string(i) + ".txt", ios::app);
+        output_2D_data << "P5\n"
+                       << 92 << " " << 112 << "\n"
+                       << 255 << "\n";
+        for (int j = 0; j < 92; j++)
+        {
+            for (int k = 0; k < 112; k++)
+            {
+                bitmap[j][k] = 0;
+            }
+        }
+
+        for (int j = 0; j < 92 * 112; j++)
+        {
+            for (int k = 0; k < 92 * 112; k++)
+            {
+                bitmap[j / 112][j % 112] += (double)pix[i][k] * WWt(k, j);
+            }
+        }
+
+        for (int j = 0; j < 92; j++)
+        {
+            for (int k = 0; k < 112; k++)
+            {
+                output_2D_data << bitmap[j][k] << ",";
+            }
+            output_2D_data << '\n';
+        }
+        // for (int j = 0; j < 92; j++)
+        // {
+        //     output_2D.write(reinterpret_cast<const char *>(bitmap[j]), wid);
+        // }
+
+        output_2D_data.close();
+    }
+
+    return 0;
+};
+
 int main()
 {
     srand(time(NULL));
-    int write_file, kernel_choose, data_mode, lda_mode;
+    int write_file, kernel_choose, data_mode, lda_mode, face_mode;
     double g1, g2, g_step;
     reader(0);
     reader(1);
@@ -667,11 +911,17 @@ int main()
     cin >> lda_mode;
     if (lda_mode == 1)
     {
-        LDA(5000, 5);
+        // LDA(5000, 5);
         LDA(2500, 5);
         return 0;
     }
     cout << "Do pca for att_faces?\n";
+    cin >> face_mode;
+    if (face_mode == 1)
+    {
+        att_faces();
+        return 0;
+    }
 
     cout << "write pca results to files?\n";
     cin >> write_file;
@@ -686,14 +936,18 @@ int main()
         cin >> g1 >> g2 >> g_step;
         for (double i = g1; i < g2; i += g_step)
         {
-            if (data_mode == 0)
-            {
-                Spectral(kernel_choose, 5, pca_2d_train, 5000, i);
-            }
-            else
-            {
-                Spectral(kernel_choose, 5, pca_2d_test, 2500, i);
-            }
+            // if (data_mode == 0)
+            // {
+            //     Spectral(kernel_choose, 5, pca_2d_train, 5000, i);
+            // }
+            // else
+            // {
+            //     Spectral(kernel_choose, 5, pca_2d_test, 2500, i);
+            // }
+            Spectral(1, 5, pca_2d_train, 5000, i);
+            Spectral(1, 5, pca_2d_test, 2500, i);
+            Spectral(0, 5, pca_2d_train, 5000, i);
+            Spectral(0, 5, pca_2d_test, 2500, i);
         }
     }
     else
