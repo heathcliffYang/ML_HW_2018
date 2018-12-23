@@ -57,6 +57,7 @@ int construct_svm_problem(char *target_input, char *X_input, struct svm_problem 
     char *ptr;
     for (int i = 0; i < num_of_data; i++)
     {
+        printf("Do data %d\n", i);
         fgets(buf, sizeof(buf), fp_target);
         ptr = strtok(buf, "\n");
         y[i] = atof(ptr);
@@ -126,258 +127,295 @@ int main(int argc, char const *argv[])
     parameters.nr_weight = 0; // or number of elements in the array weight_label and weight.
         // parameters.weight_label;
         // parameters.weight;
-    for (parameters.C = 0.1; parameters.C <= 3.11; parameters.C += 0.3)
-    {
+    // for (parameters.C = 0.1; parameters.C <= 1; parameters.C += 1)
+    // {
 
-        error_msg = svm_check_parameter(&train_problem, &parameters);
+    //     error_msg = svm_check_parameter(&train_problem, &parameters);
 
-        if (error_msg)
-        {
-            fprintf(stderr, "ERROR: %s\n", error_msg);
-            exit(1);
-        }
+    //     if (error_msg)
+    //     {
+    //         fprintf(stderr, "ERROR: %s\n", error_msg);
+    //         exit(1);
+    //     }
 
-        struct svm_model *linear;
+    //     struct svm_model *linear;
 
-        printf("    Linear model, %f, ", parameters.C);
+    //     printf("1. Linear model, C = %f\n", parameters.C);
 
-        /* performance evaluation */
-        do_cross_validation(&train_problem, &parameters, log_file);
+    //     /* performance evaluation */
+    //     do_cross_validation(&train_problem, &parameters, log_file);
 
-        linear = svm_train(&train_problem, &parameters);
+    //     linear = svm_train(&train_problem, &parameters);
 
-        /* predict results */
-        double pred = 0, correct = 0;
-        int confusion[5][4] = {};
-        for (int i = 0; i < test_problem.l; i++)
-        {
-            pred = svm_predict(linear, test_problem.x[i]);
-            if (pred == test_problem.y[i])
-                correct++;
-            for (int j = 1; j <= 5; j++)
-            {
-                /* positive at class-j */
-                if (pred == j)
-                {
-                    /* TP at class-i */
-                    if (j == test_problem.y[i])
-                    {
-                        confusion[j - 1][0]++;
-                    }
-                    else /* FP at class-i, FN at class-train_labels[k] */
-                    {
-                        confusion[j - 1][2]++;
-                        confusion[(int)(test_problem.y[i] - 1)][1]++;
-                    }
-                }
-                else
-                {
-                    if (j != test_problem.y[i])
-                        confusion[j - 1][3]++;
-                }
-            }
-        }
+    //     /* predict results */
+    //     double pred = 0, correct = 0;
+    //     int confusion[5][4] = {};
+    //     for (int i = 0; i < test_problem.l; i++)
+    //     {
+    //         pred = svm_predict(linear, test_problem.x[i]);
+    //         if (pred == test_problem.y[i])
+    //             correct++;
+    //         for (int j = 1; j <= 5; j++)
+    //         {
+    //             /* positive at class-j */
+    //             if (pred == j)
+    //             {
+    //                 /* TP at class-i */
+    //                 if (j == test_problem.y[i])
+    //                 {
+    //                     confusion[j - 1][0]++;
+    //                 }
+    //                 else /* FP at class-i, FN at class-train_labels[k] */
+    //                 {
+    //                     confusion[j - 1][2]++;
+    //                     confusion[(int)(test_problem.y[i] - 1)][1]++;
+    //                 }
+    //             }
+    //             else
+    //             {
+    //                 if (j != test_problem.y[i])
+    //                     confusion[j - 1][3]++;
+    //             }
+    //         }
+    //     }
 
-        printf("   test ACC: %f\n", correct / test_problem.l);
-        for (int i = 0; i < 5; i++)
-        { /*class i, TP, FN, FP, TN, Sensitivity, Specificity*/
-            printf("    %d, %d, %d, %d, %d, %f, %f\n",
-                   i,
-                   confusion[i][0], confusion[i][1], confusion[i][2], confusion[i][3],
-                   (double)confusion[i][0] / (double)(confusion[i][0] + confusion[i][1]),
-                   (double)confusion[i][3] / (double)(confusion[i][3] + confusion[i][2]));
-        }
+    //     printf("   test ACC: %f\n", correct / test_problem.l);
+    //     for (int i = 0; i < 5; i++)
+    //     { /*class i, TP, FN, FP, TN, Sensitivity, Specificity*/
+    //         printf("    %d, %d, %d, %d, %d, %f, %f\n",
+    //                i,
+    //                confusion[i][0], confusion[i][1], confusion[i][2], confusion[i][3],
+    //                (double)confusion[i][0] / (double)(confusion[i][0] + confusion[i][1]),
+    //                (double)confusion[i][3] / (double)(confusion[i][3] + confusion[i][2]));
+    //     }
 
-        printf("\n");
-        char model_file_name[1024];
-        char C_value[10];
-        strcpy(model_file_name, "Linear_model_");
-        sprintf(C_value, "%f", parameters.C);
-        strcat(model_file_name, C_value);
+    //     FILE *sv_file = fopen("SV_linear.txt", "a+");
+    //     int sv_count_start = 0;
+    //     int sv_count_end = 0;
+    //     for (int j = 0; j < 5; j++)
+    //     {
+    //         fprintf(sv_file, "SV of class %d: ", j);
+    //         sv_count_end += linear->nSV[j];
+    //         for (int i = sv_count_start; i < sv_count_end; i++)
+    //         {
+    //             fprintf(sv_file, "%d,", linear->sv_indices[i]);
+    //         }
+    //         fprintf(sv_file, "\n");
+    //         sv_count_start += linear->nSV[j];
+    //     }
 
-        if (svm_save_model(model_file_name, linear))
-        {
-            printf("can't save model to file %s\n", model_file_name);
-            exit(1);
-        }
-        svm_free_and_destroy_model(&linear);
-    }
+    //     printf("\n");
+    //     char model_file_name[1024];
+    //     char C_value[10];
+    //     strcpy(model_file_name, "Linear_model_");
+    //     sprintf(C_value, "%f", parameters.C);
+    //     strcat(model_file_name, C_value);
 
-    /*  polynomial kernel */
-    parameters.kernel_type = POLY;
+    //     // if (svm_save_model(model_file_name, linear))
+    //     // {
+    //     //     printf("can't save model to file %s\n", model_file_name);
+    //     //     exit(1);
+    //     // }
+    //     svm_free_and_destroy_model(&linear);
+    // }
 
-    /* Some critical parameters */
-    parameters.nr_weight = 0; // or number of elements in the array weight_label and weight.
-        // parameters.weight_label;
-        // parameters.weight;
-    parameters.coef0 = 0.7;
-    for (parameters.C = 0.1; parameters.C <= 3.11; parameters.C += 0.3)
-    {
-        for (parameters.degree = 1; parameters.degree <= 4; parameters.degree += 1)
-        {
-            for (parameters.gamma = 0.1; parameters.gamma <= 0.4; parameters.gamma += 0.1)
-            {
-                // for (parameters.coef0 = 0.1; parameters.coef0 <= 1.81; parameters.coef0 += 0.6)
-                // {
+    // /*  polynomial kernel */
+    // parameters.kernel_type = POLY;
 
-                error_msg = svm_check_parameter(&train_problem, &parameters);
+    // /* Some critical parameters */
+    // parameters.nr_weight = 0; // or number of elements in the array weight_label and weight.
+    //     // parameters.weight_label;
+    //     // parameters.weight;
+    // parameters.coef0 = 0.7;
+    // for (parameters.C = 0.1; parameters.C <= 0.1; parameters.C += 0.3)
+    // {
+    //     for (parameters.degree = 2; parameters.degree <= 2; parameters.degree += 1)
+    //     {
+    //         for (parameters.gamma = 0.4; parameters.gamma <= 0.4; parameters.gamma += 0.1)
+    //         {
+    //             // for (parameters.coef0 = 0.1; parameters.coef0 <= 1.81; parameters.coef0 += 0.6)
+    //             // {
 
-                if (error_msg)
-                {
-                    fprintf(stderr, "ERROR: %s\n", error_msg);
-                    exit(1);
-                }
+    //             error_msg = svm_check_parameter(&train_problem, &parameters);
 
-                struct svm_model *poly;
+    //             if (error_msg)
+    //             {
+    //                 fprintf(stderr, "ERROR: %s\n", error_msg);
+    //                 exit(1);
+    //             }
 
-                printf("    Poly model, %f - %d - %f - %f, ", parameters.C, parameters.degree, parameters.gamma, parameters.coef0);
-                //do_cross_validation(&train_problem, &parameters, log_file);
+    //             struct svm_model *poly;
 
-                /* performance evaluation */
-                do_cross_validation(&train_problem, &parameters, log_file);
+    //             printf("    Poly model, %f - %d - %f - %f, ", parameters.C, parameters.degree, parameters.gamma, parameters.coef0);
+    //             //do_cross_validation(&train_problem, &parameters, log_file);
 
-                poly = svm_train(&train_problem, &parameters);
+    //             /* performance evaluation */
+    //             do_cross_validation(&train_problem, &parameters, log_file);
 
-                /* predict results */
-                double pred = 0, correct = 0;
-                int confusion[5][4] = {};
-                for (int i = 0; i < test_problem.l; i++)
-                {
-                    pred = svm_predict(poly, test_problem.x[i]);
-                    if (pred == test_problem.y[i])
-                        correct++;
-                    for (int j = 1; j <= 5; j++)
-                    {
-                        /* positive at class-j */
-                        if (pred == j)
-                        {
-                            /* TP at class-i */
-                            if (j == test_problem.y[i])
-                            {
-                                confusion[j - 1][0]++;
-                            }
-                            else /* FP at class-i, FN at class-train_labels[k] */
-                            {
-                                confusion[j - 1][2]++;
-                                confusion[(int)(test_problem.y[i] - 1)][1]++;
-                            }
-                        }
-                        else
-                        {
-                            if (j != test_problem.y[i])
-                                confusion[j - 1][3]++;
-                        }
-                    }
-                }
+    //             poly = svm_train(&train_problem, &parameters);
 
-                printf("     Test ACC: %f\n", correct / test_problem.l);
-                for (int i = 0; i < 5; i++)
-                { /*class i, TP, FN, FP, TN, Sensitivity, Specificity*/
-                    printf("    %d, %d, %d, %d, %d, %f, %f\n",
-                           i,
-                           confusion[i][0], confusion[i][1], confusion[i][2], confusion[i][3],
-                           (double)confusion[i][0] / (double)(confusion[i][0] + confusion[i][1]),
-                           (double)confusion[i][3] / (double)(confusion[i][3] + confusion[i][2]));
-                }
+    //             /* predict results */
+    //             double pred = 0, correct = 0;
+    //             int confusion[5][4] = {};
+    //             for (int i = 0; i < test_problem.l; i++)
+    //             {
+    //                 pred = svm_predict(poly, test_problem.x[i]);
+    //                 if (pred == test_problem.y[i])
+    //                     correct++;
+    //                 for (int j = 1; j <= 5; j++)
+    //                 {
+    //                     /* positive at class-j */
+    //                     if (pred == j)
+    //                     {
+    //                         /* TP at class-i */
+    //                         if (j == test_problem.y[i])
+    //                         {
+    //                             confusion[j - 1][0]++;
+    //                         }
+    //                         else /* FP at class-i, FN at class-train_labels[k] */
+    //                         {
+    //                             confusion[j - 1][2]++;
+    //                             confusion[(int)(test_problem.y[i] - 1)][1]++;
+    //                         }
+    //                     }
+    //                     else
+    //                     {
+    //                         if (j != test_problem.y[i])
+    //                             confusion[j - 1][3]++;
+    //                     }
+    //                 }
+    //             }
 
-                printf("\n");
+    //             printf("     Test ACC: %f\n", correct / test_problem.l);
+    //             for (int i = 0; i < 5; i++)
+    //             { /*class i, TP, FN, FP, TN, Sensitivity, Specificity*/
+    //                 printf("    %d, %d, %d, %d, %d, %f, %f\n",
+    //                        i,
+    //                        confusion[i][0], confusion[i][1], confusion[i][2], confusion[i][3],
+    //                        (double)confusion[i][0] / (double)(confusion[i][0] + confusion[i][1]),
+    //                        (double)confusion[i][3] / (double)(confusion[i][3] + confusion[i][2]));
+    //             }
+    //             FILE *sv_file = fopen("SV_poly.txt", "a");
+    //             int sv_count_start = 0;
+    //             int sv_count_end = 0;
+    //             for (int j = 0; j < 5; j++)
+    //             {
+    //                 fprintf(sv_file, "SV of class %d: ", j);
+    //                 sv_count_end += poly->nSV[j];
+    //                 for (int i = sv_count_start; i < sv_count_end; i++)
+    //                 {
+    //                     fprintf(sv_file, "%d,", poly->sv_indices[i]);
+    //                 }
+    //                 fprintf(sv_file, "\n");
+    //                 sv_count_start += poly->nSV[j];
+    //             }
 
-                if (svm_save_model(model_file_name, poly))
-                {
-                    printf("can't save model to file %s\n", model_file_name);
-                    exit(1);
-                }
-                svm_free_and_destroy_model(&poly);
-            }
-        }
-    }
+    //             printf("\n");
+    //             svm_free_and_destroy_model(&poly);
+    //         }
+    //     }
+    // }
 
-    /*  RBF kernel */
-    parameters.kernel_type = RBF;
+    // /*  RBF kernel */
+    // parameters.kernel_type = RBF;
 
-    /* Some critical parameters */
-    parameters.nr_weight = 0; // or number of elements in the array weight_label and weight.
-    parameters.weight_label;
-    parameters.weight;
-    for (parameters.C = 0.4; parameters.C <= 3.11; parameters.C += 0.3)
-    {
-        for (parameters.gamma = 0.1; parameters.gamma <= 1.31; parameters.gamma += 0.4)
-        {
+    // /* Some critical parameters */
+    // parameters.nr_weight = 0; // or number of elements in the array weight_label and weight.
+    // parameters.weight_label;
+    // parameters.weight;
+    // for (parameters.C = 0.4; parameters.C <= 0.4; parameters.C += 0.3)
+    // {
+    //     for (parameters.gamma = 0.01; parameters.gamma <= 0.1; parameters.gamma += 0.4)
+    //     {
 
-            error_msg = svm_check_parameter(&train_problem, &parameters);
+    //         error_msg = svm_check_parameter(&train_problem, &parameters);
 
-            if (error_msg)
-            {
-                fprintf(stderr, "ERROR: %s\n", error_msg);
-                exit(1);
-            }
+    //         if (error_msg)
+    //         {
+    //             fprintf(stderr, "ERROR: %s\n", error_msg);
+    //             exit(1);
+    //         }
 
-            printf("    RBF model, %f - %f, ", parameters.C, parameters.gamma);
+    //         printf("    RBF model, %f - %f, ", parameters.C, parameters.gamma);
 
-            /* performance evaluation */
-            do_cross_validation(&train_problem, &parameters, log_file);
+    //         /* performance evaluation */
+    //         do_cross_validation(&train_problem, &parameters, log_file);
 
-            struct svm_model *RBF;
+    //         struct svm_model *RBF;
 
-            RBF = svm_train(&train_problem, &parameters);
+    //         RBF = svm_train(&train_problem, &parameters);
 
-            /* predict results */
-            double pred = 0, correct = 0;
-            int confusion[5][4] = {};
-            for (int i = 0; i < test_problem.l; i++)
-            {
-                pred = svm_predict(RBF, test_problem.x[i]);
-                if (pred == test_problem.y[i])
-                    correct++;
-                for (int j = 1; j <= 5; j++)
-                {
-                    /* positive at class-j */
-                    if (pred == j)
-                    {
-                        /* TP at class-i */
-                        if (j == test_problem.y[i])
-                        {
-                            confusion[j - 1][0]++;
-                        }
-                        else /* FP at class-i, FN at class-train_labels[k] */
-                        {
-                            confusion[j - 1][2]++;
-                            confusion[(int)(test_problem.y[i] - 1)][1]++;
-                        }
-                    }
-                    else
-                    {
-                        if (j != test_problem.y[i])
-                            confusion[j - 1][3]++;
-                    }
-                }
-            }
+    //         /* predict results */
+    //         double pred = 0, correct = 0;
+    //         int confusion[5][4] = {};
+    //         for (int i = 0; i < test_problem.l; i++)
+    //         {
+    //             pred = svm_predict(RBF, test_problem.x[i]);
+    //             if (pred == test_problem.y[i])
+    //                 correct++;
+    //             for (int j = 1; j <= 5; j++)
+    //             {
+    //                 /* positive at class-j */
+    //                 if (pred == j)
+    //                 {
+    //                     /* TP at class-i */
+    //                     if (j == test_problem.y[i])
+    //                     {
+    //                         confusion[j - 1][0]++;
+    //                     }
+    //                     else /* FP at class-i, FN at class-train_labels[k] */
+    //                     {
+    //                         confusion[j - 1][2]++;
+    //                         confusion[(int)(test_problem.y[i] - 1)][1]++;
+    //                     }
+    //                 }
+    //                 else
+    //                 {
+    //                     if (j != test_problem.y[i])
+    //                         confusion[j - 1][3]++;
+    //                 }
+    //             }
+    //         }
 
-            printf("    test ACC: %f\n", correct / test_problem.l);
-            for (int i = 0; i < 5; i++)
-            { /*class i, TP, FN, FP, TN, Sensitivity, Specificity*/
-                printf("    %d, %d, %d, %d, %d, %f, %f\n",
-                       i,
-                       confusion[i][0], confusion[i][1], confusion[i][2], confusion[i][3],
-                       (double)confusion[i][0] / (double)(confusion[i][0] + confusion[i][1]),
-                       (double)confusion[i][3] / (double)(confusion[i][3] + confusion[i][2]));
-            }
+    //         printf("    test ACC: %f\n", correct / test_problem.l);
+    //         for (int i = 0; i < 5; i++)
+    //         { /*class i, TP, FN, FP, TN, Sensitivity, Specificity*/
+    //             printf("    %d, %d, %d, %d, %d, %f, %f\n",
+    //                    i,
+    //                    confusion[i][0], confusion[i][1], confusion[i][2], confusion[i][3],
+    //                    (double)confusion[i][0] / (double)(confusion[i][0] + confusion[i][1]),
+    //                    (double)confusion[i][3] / (double)(confusion[i][3] + confusion[i][2]));
+    //         }
+    //         FILE *sv_file = fopen("SV_RBF.txt", "a");
+    //         int sv_count_start = 0;
+    //         int sv_count_end = 0;
+    //         for (int j = 0; j < 5; j++)
+    //         {
+    //             fprintf(sv_file, "SV of class %d: ", j);
+    //             sv_count_end += RBF->nSV[j];
+    //             for (int i = sv_count_start; i < sv_count_end; i++)
+    //             {
+    //                 fprintf(sv_file, "%d ,", RBF->sv_indices[i]);
+    //             }
+    //             fprintf(sv_file, "\n");
+    //             sv_count_start += RBF->nSV[j];
+    //         }
 
-            printf("\n");
-            char model_file_name[1024];
-            char C_value[10];
-            strcpy(model_file_name, "RBF_model_");
-            sprintf(C_value, "%.1f-%.1f", parameters.C, parameters.gamma);
-            strcat(model_file_name, C_value);
+    //         printf("\n");
+    //         char model_file_name[1024];
+    //         char C_value[10];
+    //         strcpy(model_file_name, "RBF_model_");
+    //         sprintf(C_value, "%.1f-%.1f", parameters.C, parameters.gamma);
+    //         strcat(model_file_name, C_value);
 
-            if (svm_save_model(model_file_name, RBF))
-            {
-                printf("can't save model to file %s\n", model_file_name);
-                exit(1);
-            }
-            svm_free_and_destroy_model(&RBF);
-        }
-    }
+    //         if (svm_save_model(model_file_name, RBF))
+    //         {
+    //             printf("can't save model to file %s\n", model_file_name);
+    //             exit(1);
+    //         }
+    //         svm_free_and_destroy_model(&RBF);
+    //     }
+    // }
 
     /*  Linear + RBF kernel */
     parameters.kernel_type = PRECOMPUTED;
@@ -389,13 +427,15 @@ int main(int argc, char const *argv[])
     // parameters.weight;
     double linear_w = 0, rbf_w = 0;
 
+    printf("Precompute kernel get start!\n");
+
     for (linear_w = 0.5; linear_w < 1.6; linear_w += 0.5)
     {
         for (rbf_w = 0.5; rbf_w < 1.6; rbf_w += 0.5)
         {
-            for (parameters.C = 0.4; parameters.C <= 3.11; parameters.C += 0.3)
+            for (parameters.C = 0.4; parameters.C <= 0.4; parameters.C += 0.3)
             {
-                for (parameters.gamma = 0.01; parameters.gamma <= 5; parameters.gamma += 0.4)
+                for (parameters.gamma = 0.01; parameters.gamma <= 0.01; parameters.gamma += 0.4)
                 {
 
                     error_msg = svm_check_parameter(&train_problem, &parameters);
@@ -410,6 +450,8 @@ int main(int argc, char const *argv[])
                     struct svm_problem precom_train_problem;
                     struct svm_problem precom_test_problem;
 
+                    printf("Compute user-defined kernel value\n");
+
                     struct svm_node **X = (struct svm_node **)malloc(sizeof(struct svm_node *) * train_problem.l + sizeof(struct svm_node) * train_problem.l * (train_problem.l + 1));
                     if (!X)
                     {
@@ -418,28 +460,32 @@ int main(int argc, char const *argv[])
                     struct svm_node *pStruct;
                     int j = 0;
                     double precom_linear = 0, precom_rbf = 0;
-                    for (j = 0, pStruct = (struct svm_node *)(X + train_problem.l); j < train_problem.l; j++, pStruct += train_problem.l)
+                    for (j = 0, pStruct = (struct svm_node *)(X + train_problem.l); j < train_problem.l; j++, pStruct += (train_problem.l + 1))
                     {
                         X[j] = pStruct;
                     }
                     for (int i = 0; i < train_problem.l; i++)
                     {
+                        printf("line %d ... ", i);
                         for (j = 0; j < (train_problem.l + 1); j++)
                         {
 
-                            X[i][j].index = j;
                             if (j == 0)
-                                X[i][j].value = i;
+                            {
+                                X[i][j].index = i;
+                                X[i][j].value = 0;
+                            }
                             else
                             {
+                                X[i][j].index = j - 1;
                                 precom_linear = 0;
                                 precom_rbf = 0;
                                 for (int k = 0; k < 784; k++)
                                 {
                                     precom_linear += train_problem.x[i][k].value * train_problem.x[j - 1][k].value;
-                                    precom_rbf += pow(train_problem.x[i][k].value, 2) + pow(train_problem.x[j - 1][k].value, 2) - 2 * train_problem.x[i][k].value * train_problem.x[j - 1][k].value;
+                                    precom_rbf += pow(train_problem.x[i][k].value - train_problem.x[j - 1][k].value, 2);
                                 }
-                                X[i][j].value = linear_w * precom_linear + rbf_w * exp(-parameters.gamma * pow(precom_rbf, 2));
+                                X[i][j].value = linear_w * precom_linear + rbf_w * exp(-parameters.gamma * precom_rbf);
                                 //printf("%f\n", X[i][j].value);
                             }
                         }
@@ -447,49 +493,59 @@ int main(int argc, char const *argv[])
                     precom_train_problem.x = X;
                     precom_train_problem.y = train_problem.y;
                     precom_train_problem.l = train_problem.l;
+                    printf("Finish train data\n");
                     struct svm_node **X_test = (struct svm_node **)malloc(sizeof(struct svm_node *) * test_problem.l + sizeof(struct svm_node) * test_problem.l * (test_problem.l + 1));
                     if (!X_test)
                     {
                         printf("fail to malloc\n");
                     }
-                    for (j = 0, pStruct = (struct svm_node *)(X + test_problem.l); j < test_problem.l; j++, pStruct += test_problem.l)
+                    for (j = 0, pStruct = (struct svm_node *)(X + test_problem.l); j < test_problem.l; j++, pStruct += (test_problem.l + 1))
                     {
                         X_test[j] = pStruct;
                     }
                     for (int i = 0; i < test_problem.l; i++)
                     {
+                        printf("line %d ... ", i);
                         for (j = 0; j < (test_problem.l + 1); j++)
                         {
 
-                            X[i][j].index = j;
                             if (j == 0)
-                                X[i][j].value = i;
+                            {
+                                X_test[i][j].index = i;
+                                X_test[i][j].value = 0;
+                            }
                             else
                             {
+                                X_test[i][j].index = j - 1;
                                 precom_linear = 0;
                                 precom_rbf = 0;
                                 for (int k = 0; k < 784; k++)
                                 {
                                     precom_linear += test_problem.x[i][k].value * test_problem.x[j - 1][k].value;
-                                    precom_rbf += pow(test_problem.x[i][k].value, 2) + pow(test_problem.x[j - 1][k].value, 2) - 2 * test_problem.x[i][k].value * test_problem.x[j - 1][k].value;
+                                    precom_rbf += pow(test_problem.x[i][k].value - test_problem.x[j - 1][k].value, 2);
                                 }
-                                X[i][j].value = linear_w * precom_linear + rbf_w * exp(-parameters.gamma * pow(precom_rbf, 2));
+                                X_test[i][j].value = linear_w * precom_linear + rbf_w * exp(-parameters.gamma * precom_rbf);
                             }
                         }
                     }
                     precom_test_problem.x = X_test;
                     precom_test_problem.y = test_problem.y;
                     precom_test_problem.l = test_problem.l;
+                    printf("Finish test data\n");
+                    free(train_problem.x);
+                    free(train_problem.y);
+                    free(test_problem.x);
+                    free(test_problem.y);
 
                     struct svm_model *L_RBF;
 
                     printf("    L_RBF model, %f - %f - %f - %f, ", parameters.C, parameters.gamma, linear_w, rbf_w);
 
                     /* performance evaluation */
-                    do_cross_validation(&precom_train_problem, &parameters, log_file);
+                    //do_cross_validation(&precom_train_problem, &parameters, log_file);
 
                     L_RBF = svm_train(&precom_train_problem, &parameters);
-
+                    printf("Finish training\n");
                     /* predict results */
                     double pred = 0, correct = 0;
                     int confusion[5][4] = {};
