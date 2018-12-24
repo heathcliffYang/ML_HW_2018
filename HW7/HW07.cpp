@@ -417,6 +417,8 @@ int Spectral(int kernel_choose, int num_of_cl, int data_num, double gamma)
          << "data_num: " << data_num << " gamma: " << gamma << " kernel " << kernel_choose << endl;
 
     vector<vector<double>> W(data_num);
+
+    /* compute W according to different kernel */
     for (int i = 0; i < data_num; i++)
     {
         cout << i << "... ";
@@ -429,6 +431,7 @@ int Spectral(int kernel_choose, int num_of_cl, int data_num, double gamma)
 
     Eigen::MatrixXd L(data_num, data_num);
     vector<double> D(data_num);
+    /* compute L and D (D is for inverse later) */
     for (int i = 0; i < data_num; i++)
     {
         D[i] = 0;
@@ -449,12 +452,13 @@ int Spectral(int kernel_choose, int num_of_cl, int data_num, double gamma)
 
     W.clear();
 
-    /* L for ratio cut */
     cout << "Ratio Cut\n";
     int g = (int)gamma;
     ofstream output_file("ratio_cut_data_point_k_" + to_string(kernel_choose) + "_d_" + to_string(data_num) + "_g_" + to_string(g) + ".csv", ios::app);
+
+    /* L for ratio cut */
     DenseSymMatProd<double> op(L);
-    SymEigsSolver<double, SMALLEST_ALGE, DenseSymMatProd<double>> eigs(&op, 5, 2 * (5 + 1));
+    SymEigsSolver<double, SMALLEST_ALGE, DenseSymMatProd<double>> eigs(&op, 5 + 1, 2 * (5 + 1 + 1));
     eigs.init();
 
     cout << "compute eigenvectors\n";
@@ -473,6 +477,8 @@ int Spectral(int kernel_choose, int num_of_cl, int data_num, double gamma)
     }
 
     cout << "Put eigenvectors in U\n";
+
+    /* Pass eigenvectors to k_means and perform k_means in K-dimension */
     for (int i = 0; i < data_num; i++)
     {
         U[i] = vector<double>(num_of_cl);
@@ -492,7 +498,7 @@ int Spectral(int kernel_choose, int num_of_cl, int data_num, double gamma)
 
     U.clear();
 
-    /* normalized cut */
+    /* normalized cut  D-1 L*/
     cout << "Normalized Cut\n";
     ofstream output_file_normal("normal_cut_data_point_k_" + to_string(kernel_choose) + "_d_" + to_string(data_num) + "_g_" + to_string(g) + ".csv", ios::app);
 
@@ -504,7 +510,7 @@ int Spectral(int kernel_choose, int num_of_cl, int data_num, double gamma)
         }
     }
     DenseSymMatProd<double> op_normal(L);
-    SymEigsSolver<double, SMALLEST_ALGE, DenseSymMatProd<double>> eigs_normal(&op_normal, 5, 2 * (5 + 1));
+    SymEigsSolver<double, SMALLEST_ALGE, DenseSymMatProd<double>> eigs_normal(&op_normal, 5 + 1, 2 * (5 + 1 + 1));
     eigs_normal.init();
     cout << "compute eigenvectors\n";
     eigs_normal.compute();
@@ -575,12 +581,10 @@ int LDA(int data_num, int num_of_cl)
             }
         }
 
-        /* Find centers */
+        /* Find centers for each class */
         for (int i = 0; i < data_num; i++)
         {
             cl_elements[T_train[i] - 1]++;
-
-            cout << "data " << i << endl;
 
             for (int j = 0; j < 784; j++)
             {
@@ -589,14 +593,12 @@ int LDA(int data_num, int num_of_cl)
         }
         for (int i = 0; i < num_of_cl; i++)
         {
-            //cout << "cluster " << i << " contains " << cl_elements[i] << " elements\n";
             for (int j = 0; j < 784; j++)
             {
                 centers[i][j] /= cl_elements[i];
-                //cout << centers[i][j] << " ";
             }
-            // cout << endl;
         }
+
         cout << "Finish centers computation\n";
 
         double tmp_x[784] = {0};
@@ -863,8 +865,9 @@ int att_faces()
     string line;
     int len, wid, iter = 0, im_num = 400;
     unsigned char pixel;
-    unsigned int pix[92 * 112];
-    unsigned int center[92 * 112] = {0};
+    unsigned int contain;
+    double pix[92 * 112];
+    double center[92 * 112] = {0};
 
     /* read file to compute the center */
     cout << "compute center\n";
@@ -882,7 +885,7 @@ int att_faces()
                 getline(input_file, line, '\n');
                 wid = stoi(line, nullptr, 0);
                 getline(input_file, line, '\n');
-                cout << "The picture is " << len << " x " << wid << endl;
+                cout << i << " The picture is " << len << " x " << wid << endl;
                 ss << input_file.rdbuf();
                 iter = 0;
                 for (int k = 0; k < len; k++)
@@ -892,7 +895,8 @@ int att_faces()
 
                         ss >> pixel;
                         //getline(input_file, line, '\n');
-                        pix[iter] = pixel;
+                        contain = pixel;
+                        pix[iter] = (double)contain;
                         center[iter] += pix[iter];
                         iter++;
                     }
@@ -924,16 +928,18 @@ int att_faces()
                 getline(input_file, line, '\n');
                 wid = stoi(line, nullptr, 0);
                 getline(input_file, line, '\n');
-                cout << "The picture is " << len << " x " << wid << endl;
+                cout << i << " " << j << " The picture is " << len << " x " << wid << endl;
                 ss << input_file.rdbuf();
                 iter = 0;
+                /* compute S */
                 for (int k = 0; k < len; k++)
                 {
                     for (int l = 0; l < wid; l++)
                     {
 
                         ss >> pixel;
-                        pix[iter] = pixel;
+                        contain = pixel;
+                        pix[iter] = (double)contain;
                         pix[iter] = pix[iter] - center[iter];
                         iter++;
                     }
@@ -968,10 +974,8 @@ int att_faces()
     for (int i = 0; i < 25; i++)
     {
         cout << "Write ..." << i << endl;
-        ofstream output_2D("PCA_eigen_face_" + to_string(i) + ".txt", ios::app);
-        // output_2D << "P5\n"
-        //           << 92 << " " << 112 << "\n"
-        //           << 255 << "\n";
+        ofstream output_2D("final_eigen_face_" + to_string(i) + ".txt", ios::app);
+        /* eigen face */
         iter = 0;
         output_2D << i << '\n';
         for (int j = 0; j < 112; j++)
@@ -990,9 +994,9 @@ int att_faces()
     }
 
     /* Reconstruct original Face */
-    for (int j = 1; j <= 10; j++)
+    for (int j = 1; j <= 1; j++)
     {
-        for (int i = 1; i <= 40; i++)
+        for (int i = 1; i <= 10; i++)
         {
             ifstream input_file("att_faces/s" + to_string(i) + "/" + to_string(j) + ".pgm", ios::binary);
             stringstream ss;
@@ -1004,7 +1008,7 @@ int att_faces()
                 getline(input_file, line, '\n');
                 wid = stoi(line, nullptr, 0);
                 getline(input_file, line, '\n');
-                cout << "The picture is " << len << " x " << wid << endl;
+                cout << i << " The picture is " << len << " x " << wid << endl;
                 ss << input_file.rdbuf();
                 iter = 0;
                 for (int k = 0; k < len; k++)
@@ -1013,16 +1017,16 @@ int att_faces()
                     {
 
                         ss >> pixel;
-                        pix[iter] = pixel;
+                        contain = pixel;
+                        pix[iter] = (double)contain;
                         iter++;
                     }
                 }
                 /* finish reading a picture */
 
-                ofstream output_2D_data("PCA_recon_face_" + to_string(i) + "_" + to_string(j) + ".txt", ios::app);
-                // output_2D_data << "P5\n"
-                //                << 92 << " " << 112 << "\n"
-                //                << 255 << "\n";
+                ofstream output_2D_data("final_recon_face_" + to_string(i) + "_" + to_string(j) + ".txt", ios::app);
+
+                /* Reconstruction */
                 for (int l = 0; l < 112; l++)
                 {
                     for (int k = 0; k < 92; k++)
@@ -1035,9 +1039,10 @@ int att_faces()
                 {
                     for (int k = 0; k < 92 * 112; k++)
                     {
-                        bitmap[l / 112][l % 112] += pix[k] * WWt(k, l);
+                        bitmap[l / 92][l % 92] += pix[k] * WWt(k, l);
                     }
                 }
+
                 for (int l = 0; l < 112; l++)
                 {
                     for (int k = 0; k < 92 - 1; k++)
