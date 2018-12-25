@@ -1095,15 +1095,15 @@ int main()
     {
         cout << "Gamma range and step\n";
         cin >> g1 >> g2 >> g_step;
-        // for (double i = g1; i < g2; i += g_step)
-        // {
-        //     Spectral(1, 5, 5000, i);
-        //     Spectral(1, 5, 2500, i);
-        //     Spectral(0, 5, 5000, i);
-        //     Spectral(0, 5, 2500, i);
-        // }
-        Spectral(2, 5, 5000, 0.0);
-        Spectral(2, 5, 2500, 0.0);
+        for (double i = g1; i < g2; i += g_step)
+        {
+            Spectral(1, 5, 5000, i);
+            Spectral(1, 5, 2500, i);
+            // Spectral(0, 5, 5000, i);
+            // Spectral(0, 5, 2500, i);
+        }
+        // Spectral(2, 5, 5000, 0.0);
+        // Spectral(2, 5, 2500, 0.0);
     }
     else
     { // use linear
