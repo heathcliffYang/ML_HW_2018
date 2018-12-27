@@ -24,9 +24,6 @@ double pca_2d_test[2500][2] = {0};
 int T_train[5000] = {0};
 int T_test[2500] = {0};
 
-Eigen::MatrixXd covariance_train(784, 784);
-Eigen::MatrixXd covariance_test(784, 784);
-
 int reader(int data_mode)
 {
     string line;
@@ -51,6 +48,15 @@ int reader(int data_mode)
                 getline(input_file, line);
                 X_train[j][783] = stod(line);
             }
+            /* compute centers */
+            for (int i = 0; i < 784; i++)
+            {
+                for (int j = 0; j < 5000; j++)
+                {
+                    X_train_c[i] += X_train[j][i];
+                }
+                X_train_c[i] /= 5000;
+            }
         }
         else
         {
@@ -64,6 +70,14 @@ int reader(int data_mode)
                 getline(input_file, line);
                 X_test[j][783] = stod(line);
             }
+            for (int i = 0; i < 784; i++)
+            {
+                for (int j = 0; j < 2500; j++)
+                {
+                    X_test_c[i] += X_test[j][i];
+                }
+                X_test_c[i] /= 2500;
+            }
         }
         input_file.close();
         cout << "End read." << endl;
@@ -73,125 +87,7 @@ int reader(int data_mode)
         cout << "Cannot open" << endl;
         return -1;
     }
-    /* compute centers */
-    for (int i = 0; i < 784; i++)
-    {
-        for (int j = 0; j < 5000; j++)
-        {
-            X_train_c[i] += X_train[j][i];
-        }
-        X_train_c[i] /= 5000;
-    }
-    for (int i = 0; i < 784; i++)
-    {
-        for (int j = 0; j < 2500; j++)
-        {
-            X_test_c[i] += X_test[j][i];
-        }
-        X_test_c[i] /= 2500;
-    }
-    return 0;
-};
 
-int PCA(int write_file)
-{
-
-    double tmp_x[784] = {};
-
-    for (int i = 0; i < 5000; i++)
-    {
-        for (int j = 0; j < 784; j++)
-        {
-            tmp_x[j] = X_train[i][j] - X_train_c[j];
-        }
-
-        for (int j = 0; j < 784; j++)
-        {
-            for (int k = 0; k < 784; k++)
-            {
-                covariance_train(j, k) += tmp_x[j] * tmp_x[k] / 5000;
-            }
-        }
-    }
-
-    for (int i = 0; i < 2500; i++)
-    {
-        for (int j = 0; j < 784; j++)
-        {
-            tmp_x[j] = X_test[i][j] - X_test_c[j];
-        }
-
-        for (int j = 0; j < 784; j++)
-        {
-            for (int k = 0; k < 784; k++)
-            {
-                covariance_test(j, k) += tmp_x[j] * tmp_x[k] / 2500;
-            }
-        }
-    }
-    DenseSymMatProd<double> op_train(covariance_train);
-    DenseSymMatProd<double> op_test(covariance_test);
-    SymEigsSolver<double, LARGEST_ALGE, DenseSymMatProd<double>> eigs_train(&op_train, 2, 2 * (2 + 1));
-    SymEigsSolver<double, LARGEST_ALGE, DenseSymMatProd<double>> eigs_test(&op_test, 2, 2 * (2 + 1));
-    eigs_train.init();
-    eigs_test.init();
-
-    cout << "compute pca's eigen problem\n";
-
-    eigs_train.compute();
-    eigs_test.compute();
-
-    cout << "end\n";
-
-    //Retrieve results
-    Eigen::VectorXd evalues_train;
-    Eigen::MatrixXd evectors_train;
-    if (eigs_train.info() == SUCCESSFUL)
-    {
-        evalues_train = eigs_train.eigenvalues();
-        evectors_train = eigs_train.eigenvectors();
-    }
-
-    ofstream ouput_train_2D("PCA_train.txt", ios::app);
-
-    for (int i = 0; i < 5000; i++)
-    {
-        for (int j = 0; j < 784; j++)
-        {
-            pca_2d_train[i][0] += X_train[i][j] * evectors_train(j, 0);
-            pca_2d_train[i][1] += X_train[i][j] * evectors_train(j, 1);
-        }
-        if (write_file == 1)
-        {
-            ouput_train_2D << pca_2d_train[i][0] << "," << pca_2d_train[i][1] << "\n";
-        }
-    }
-    ouput_train_2D.close();
-
-    // Retrieve results
-    Eigen::VectorXd evalues_test;
-    Eigen::MatrixXd evectors_test;
-    if (eigs_test.info() == SUCCESSFUL)
-    {
-        evalues_test = eigs_test.eigenvalues();
-        evectors_test = eigs_test.eigenvectors();
-    }
-    cout << "write test\n";
-    ofstream ouput_test_2D("PCA_test.txt", ios::app);
-    for (int i = 0; i < 2500; i++)
-    {
-        for (int j = 0; j < 784; j++)
-        {
-            pca_2d_test[i][0] += X_test[i][j] * evectors_test(j, 0);
-            pca_2d_test[i][1] += X_test[i][j] * evectors_test(j, 1);
-        }
-        if (write_file == 1)
-        {
-            ouput_test_2D << pca_2d_test[i][0] << "," << pca_2d_test[i][1] << "\n";
-        }
-    }
-    ouput_test_2D.close();
-    cout << "end\n";
     return 0;
 };
 
@@ -256,6 +152,174 @@ double Kernel(int kernel_choose, int data_num, int i, int j, double gamma)
             return exp(-gamma * tmp) + tmp_1;
         }
     }
+};
+
+int PCA(int write_file, int kernel_choose, int data_num, int gamma)
+{
+
+    if (kernel_choose == 3)
+    {
+        double tmp_x[784] = {};
+        Eigen::MatrixXd covariance_train(784, 784);
+        Eigen::MatrixXd covariance_test(784, 784);
+        for (int i = 0; i < 5000; i++)
+        {
+            for (int j = 0; j < 784; j++)
+            {
+                tmp_x[j] = X_train[i][j] - X_train_c[j];
+            }
+
+            for (int j = 0; j < 784; j++)
+            {
+                for (int k = 0; k < 784; k++)
+                {
+                    covariance_train(j, k) += tmp_x[j] * tmp_x[k] / 5000;
+                }
+            }
+        }
+
+        for (int i = 0; i < 2500; i++)
+        {
+            for (int j = 0; j < 784; j++)
+            {
+                tmp_x[j] = X_test[i][j] - X_test_c[j];
+            }
+
+            for (int j = 0; j < 784; j++)
+            {
+                for (int k = 0; k < 784; k++)
+                {
+                    covariance_test(j, k) += tmp_x[j] * tmp_x[k] / 2500;
+                }
+            }
+        }
+
+        DenseSymMatProd<double> op_train(covariance_train);
+        DenseSymMatProd<double> op_test(covariance_test);
+        SymEigsSolver<double, LARGEST_ALGE, DenseSymMatProd<double>> eigs_train(&op_train, 2, 2 * (2 + 1));
+        SymEigsSolver<double, LARGEST_ALGE, DenseSymMatProd<double>> eigs_test(&op_test, 2, 2 * (2 + 1));
+        eigs_train.init();
+        eigs_test.init();
+
+        cout << "compute pca's eigen problem\n";
+
+        eigs_train.compute();
+        eigs_test.compute();
+
+        cout << "end\n";
+
+        //Retrieve results
+        Eigen::VectorXd evalues_train;
+        Eigen::MatrixXd evectors_train;
+        if (eigs_train.info() == SUCCESSFUL)
+        {
+            evalues_train = eigs_train.eigenvalues();
+            evectors_train = eigs_train.eigenvectors();
+        }
+
+        ofstream ouput_train_2D("PCA_train.txt", ios::app);
+
+        for (int i = 0; i < 5000; i++)
+        {
+            for (int j = 0; j < 784; j++)
+            {
+                pca_2d_train[i][0] += X_train[i][j] * evectors_train(j, 0);
+                pca_2d_train[i][1] += X_train[i][j] * evectors_train(j, 1);
+            }
+            if (write_file == 1)
+            {
+                ouput_train_2D << pca_2d_train[i][0] << "," << pca_2d_train[i][1] << "\n";
+            }
+        }
+        ouput_train_2D.close();
+
+        // Retrieve results
+        Eigen::VectorXd evalues_test;
+        Eigen::MatrixXd evectors_test;
+        if (eigs_test.info() == SUCCESSFUL)
+        {
+            evalues_test = eigs_test.eigenvalues();
+            evectors_test = eigs_test.eigenvectors();
+        }
+        cout << "write test\n";
+        ofstream ouput_test_2D("PCA_test.txt", ios::app);
+        for (int i = 0; i < 2500; i++)
+        {
+            for (int j = 0; j < 784; j++)
+            {
+                pca_2d_test[i][0] += X_test[i][j] * evectors_test(j, 0);
+                pca_2d_test[i][1] += X_test[i][j] * evectors_test(j, 1);
+            }
+            if (write_file == 1)
+            {
+                ouput_test_2D << pca_2d_test[i][0] << "," << pca_2d_test[i][1] << "\n";
+            }
+        }
+        ouput_test_2D.close();
+        cout << "end\n";
+    }
+    else
+    {
+        Eigen::MatrixXd covariance(data_num, data_num);
+        Eigen::MatrixXd ones(data_num, data_num);
+        for (int i = 0; i < data_num; i++)
+        {
+            for (int j = 0; j < data_num; j++)
+            {
+                covariance(i, j) = 0;
+            }
+        }
+        for (int i = 0; i < data_num; i++)
+        {
+            for (int j = 0; j < data_num; j++)
+            {
+                covariance(i, j) += Kernel(kernel_choose, data_num, i, j, gamma) / data_num;
+                ones(i, j) = 1 / data_num;
+            }
+        }
+
+        Eigen::MatrixXd covariance_c = covariance - ones * covariance - covariance * ones + ones * covariance * ones;
+
+        DenseSymMatProd<double> op(covariance_c);
+        SymEigsSolver<double, LARGEST_ALGE, DenseSymMatProd<double>> eigs(&op, 2, 2 * (2 + 1));
+        eigs.init();
+
+        cout << "compute pca's eigen problem\n";
+
+        eigs.compute();
+
+        cout << "end\n";
+
+        //Retrieve results
+        Eigen::VectorXd evalues;
+        Eigen::MatrixXd evectors;
+        if (eigs.info() == SUCCESSFUL)
+        {
+            evalues = eigs.eigenvalues();
+            evectors = eigs.eigenvectors();
+        }
+        int g = (int)gamma;
+
+        Eigen::MatrixXd project = covariance * evectors;
+
+        ofstream ouput_train_2D("kernel_pca/PCA_k_" + to_string(kernel_choose) + "_d_" + to_string(data_num) + "_g_" + to_string(g) + ".txt", ios::app);
+
+        for (int i = 0; i < data_num; i++)
+        {
+
+            pca_2d_train[i][0] = project(i, 0);
+            pca_2d_train[i][1] = project(i, 1);
+
+            if (write_file == 1)
+            {
+                ouput_train_2D << pca_2d_train[i][0] << "," << pca_2d_train[i][1] << "\n";
+            }
+        }
+        ouput_train_2D.close();
+
+        cout << "end\n";
+    }
+    return 0;
 };
 
 bool is_converge(vector<vector<double>> centers, int num_of_cl)
@@ -389,7 +453,7 @@ int k_means(vector<vector<double>> U, int data_num, int num_of_cl, int kernel_ch
 
     if (spec_mode == 0)
     {
-        ofstream output_file("ratio_cut_k_" + to_string(kernel_choose) + "_d_" + to_string(data_num) + "_g_" + to_string(g) + ".csv", ios::app);
+        ofstream output_file("kernel_pca/ratio_cut_k_" + to_string(kernel_choose) + "_d_" + to_string(data_num) + "_g_" + to_string(g) + ".csv", ios::app);
 
         for (int i = 0; i < data_num; i++)
         {
@@ -399,7 +463,7 @@ int k_means(vector<vector<double>> U, int data_num, int num_of_cl, int kernel_ch
     }
     else
     {
-        ofstream output_file("normalized_cut_k_" + to_string(kernel_choose) + "_d_" + to_string(data_num) + "_g_" + to_string(g) + ".csv", ios::app);
+        ofstream output_file("kernel_pca/normalized_cut_k_" + to_string(kernel_choose) + "_d_" + to_string(data_num) + "_g_" + to_string(g) + ".csv", ios::app);
 
         for (int i = 0; i < data_num; i++)
         {
@@ -958,7 +1022,7 @@ int att_faces()
 
     cout << "Start compute eigenvectors\n";
     DenseSymMatProd<double> op(S);
-    SymEigsSolver<double, LARGEST_ALGE, DenseSymMatProd<double>> eigs(&op, 25, 2 * (25 + 1));
+    SymEigsSolver<double, LARGEST_ALGE, DenseSymMatProd<double>> eigs(&op, 40, 2 * (40 + 1));
     eigs.init();
     eigs.compute();
     Eigen::MatrixXd evectors;
@@ -971,10 +1035,10 @@ int att_faces()
     cout << "Compute transpose\nStart to write new eigenface in\n";
 
     double bitmap[112][92];
-    for (int i = 0; i < 25; i++)
+    for (int i = 0; i < 40; i++)
     {
         cout << "Write ..." << i << endl;
-        ofstream output_2D("final_eigen_face_" + to_string(i) + ".txt", ios::app);
+        ofstream output_2D("new_eigen_face_" + to_string(i) + ".txt", ios::app);
         /* eigen face */
         iter = 0;
         output_2D << i << '\n';
@@ -1024,7 +1088,7 @@ int att_faces()
                 }
                 /* finish reading a picture */
 
-                ofstream output_2D_data("final_recon_face_" + to_string(i) + "_" + to_string(j) + ".txt", ios::app);
+                ofstream output_2D_data("new_recon_face_" + to_string(i) + "_" + to_string(j) + ".txt", ios::app);
 
                 /* Reconstruction */
                 for (int l = 0; l < 112; l++)
@@ -1065,7 +1129,6 @@ int main()
     int write_file, kernel_choose, data_mode, lda_mode, face_mode;
     double g1, g2, g_step;
     reader(0);
-    reader(1);
 
     /* LDA part */
     cout << "Do LDA?\n";
@@ -1086,7 +1149,7 @@ int main()
 
     cout << "write pca results to files?\n";
     cin >> write_file;
-    //PCA(write_file);
+
     cout << "end of PCA\n>> Kernel_choose\n";
     cin >> kernel_choose;
     cout << ">> data_mode\n"; // 0 is train
@@ -1097,10 +1160,8 @@ int main()
         cin >> g1 >> g2 >> g_step;
         for (double i = g1; i < g2; i += g_step)
         {
-            Spectral(1, 5, 5000, i);
-            Spectral(1, 5, 2500, i);
-            // Spectral(0, 5, 5000, i);
-            // Spectral(0, 5, 2500, i);
+            PCA(write_file, kernel_choose, 5000, i);
+            Spectral(kernel_choose, 5, 5000, i);
         }
         // Spectral(2, 5, 5000, 0.0);
         // Spectral(2, 5, 2500, 0.0);
