@@ -154,7 +154,7 @@ double Kernel(int kernel_choose, int data_num, int i, int j, double gamma)
     }
 };
 
-int PCA(int write_file, int kernel_choose, int data_num, int gamma)
+int PCA(int write_file, int kernel_choose, int data_num, double gamma)
 {
 
     if (kernel_choose == 3)
@@ -262,6 +262,7 @@ int PCA(int write_file, int kernel_choose, int data_num, int gamma)
     {
         Eigen::MatrixXd covariance(data_num, data_num);
         Eigen::MatrixXd ones(data_num, data_num);
+        cout << "Start PCA projection " << data_num << " kernel is " << kernel_choose << endl;
         for (int i = 0; i < data_num; i++)
         {
             for (int j = 0; j < data_num; j++)
@@ -1157,12 +1158,22 @@ int main()
     if (kernel_choose != 2)
     {
         cout << "Gamma range and step\n";
-        cin >> g1 >> g2 >> g_step;
-        for (double i = g1; i < g2; i += g_step)
-        {
-            PCA(write_file, kernel_choose, 5000, i);
-            Spectral(kernel_choose, 5, 5000, i);
-        }
+        // cin >> g1 >> g2 >> g_step;
+        PCA(1, 1, 5000, 0.01);
+        Spectral(1, 5, 5000, 0.01);
+        PCA(1, 0, 5000, 1);
+        Spectral(0, 5, 5000, 1);
+        PCA(1, 1, 5000, 20);
+        Spectral(1, 5, 5000, 20);
+        PCA(1, 0, 5000, 30);
+        Spectral(0, 5, 5000, 30);
+        PCA(1, 1, 5000, 90);
+        Spectral(1, 5, 5000, 90);
+        PCA(1, 0, 5000, 60);
+        Spectral(0, 5, 5000, 60);
+        PCA(1, 0, 5000, 90);
+        Spectral(0, 5, 5000, 90);
+
         // Spectral(2, 5, 5000, 0.0);
         // Spectral(2, 5, 2500, 0.0);
     }
